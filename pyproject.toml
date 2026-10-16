@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "timbreforge"
+version = "0.5.0a1"
+description = "Local character voice studio with profile-to-prompt planning, voice design and reference cloning"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+authors = [{name = "TimbreForge contributors"}]
+keywords = ["audio", "voice", "tts", "synthesis", "chinese"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Topic :: Multimedia :: Sound/Audio",
+  "Natural Language :: Chinese (Simplified)",
+]
+dependencies = ["numpy>=1.24,<3", "soundfile>=0.12,<1"]
+
+[project.optional-dependencies]
+ui = ["gradio==6.30.0"]
+
+[project.urls]
+Homepage = "https://github.com/zdd3143/timbreforge"
+Documentation = "https://github.com/zdd3143/timbreforge#readme"
+Issues = "https://github.com/zdd3143/timbreforge/issues"
+Source = "https://github.com/zdd3143/timbreforge"
+
+[project.scripts]
+timbreforge-studio = "timbreforge.studio_cli:main"
+timbreforge-ui = "timbreforge.webui:main"
+timbreforge-launch = "timbreforge.launcher:main"
+timbreforge-create = "timbreforge.creation_cli:main"
+timbreforge-design = "timbreforge.design_cli:main"
+timbreforge-synth = "timbreforge.cli:main"
+timbreforge-voicegen = "timbreforge.voicegen:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["timbreforge*"]
+exclude = ["tests*", "tools*"]
+namespaces = false
+
+[tool.setuptools]
+include-package-data = false

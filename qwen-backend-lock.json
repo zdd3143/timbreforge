@@ -1,0 +1,281 @@
+{
+  "schema_version": 1,
+  "models": [
+    {
+      "repo_id": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+      "revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+      "files": [
+        {
+          "path": ".gitattributes",
+          "bytes": 1519,
+          "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+        },
+        {
+          "path": "README.md",
+          "bytes": 3214,
+          "sha256": "acfaf6c0d433866cb5e2bb73e7915ea3767f5a2e3abca413b485635a2c72b5e6"
+        },
+        {
+          "path": "config.json",
+          "bytes": 4421,
+          "sha256": "aecd2cc4c1fe9edef1cb7ca7c401685a43879ad43f3f9e883f1c6760b61731e0"
+        },
+        {
+          "path": "generation_config.json",
+          "bytes": 245,
+          "sha256": "f1b90b4513f3b34c62851049e2492d7b4c5940daf1276f89c82b8ef04127f3aa"
+        },
+        {
+          "path": "merges.txt",
+          "bytes": 1671839,
+          "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"
+        },
+        {
+          "path": "model.safetensors",
+          "bytes": 3833402552,
+          "sha256": "391e8db219f292c515297cdceeb43e4eae67cdde35fa57e79a6a8a532fca0522"
+        },
+        {
+          "path": "preprocessor_config.json",
+          "bytes": 127,
+          "sha256": "efdde1022ea9d76928bf7a9cd53139138f5ba2e466e837f08f6105ab1af1c119"
+        },
+        {
+          "path": "speech_tokenizer/config.json",
+          "bytes": 2336,
+          "sha256": "ee65bb901c876664ab8707c487157aa1a6ee57c65969b28fb5ec9dc211e68167"
+        },
+        {
+          "path": "speech_tokenizer/configuration.json",
+          "bytes": 76,
+          "sha256": "6bc26d64eb5024b4d1dab5a52371958b429256d6c9d59787f1f5294a54e0cebd"
+        },
+        {
+          "path": "speech_tokenizer/model.safetensors",
+          "bytes": 682293092,
+          "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258"
+        },
+        {
+          "path": "speech_tokenizer/preprocessor_config.json",
+          "bytes": 234,
+          "sha256": "fcb3805e597e786d4067706e602f6688524640f8d3396790e2e09b5942fcbdfb"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "bytes": 7344,
+          "sha256": "dc3c31c3bdaedd5016382bb3cbe07323026775ad51f5a4fb564505992ae4a670"
+        },
+        {
+          "path": "vocab.json",
+          "bytes": 2776833,
+          "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+        }
+      ],
+      "source": "official HF pinned tree; matching official Qwen ModelScope LFS fallback"
+    },
+    {
+      "repo_id": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+      "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+      "files": [
+        {
+          "path": ".gitattributes",
+          "bytes": 1519,
+          "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+        },
+        {
+          "path": "README.md",
+          "bytes": 3640,
+          "sha256": "181187b6057906bd960bc7f938d0b7a16652509776a0d52c4885b4ae5ccda0ea"
+        },
+        {
+          "path": "config.json",
+          "bytes": 4494,
+          "sha256": "2e714c787c8edb98b05432685cddb634add2de4d4e645f653d68251ef72ba011"
+        },
+        {
+          "path": "generation_config.json",
+          "bytes": 245,
+          "sha256": "f1b90b4513f3b34c62851049e2492d7b4c5940daf1276f89c82b8ef04127f3aa"
+        },
+        {
+          "path": "merges.txt",
+          "bytes": 1671839,
+          "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"
+        },
+        {
+          "path": "model.safetensors",
+          "bytes": 1829344272,
+          "sha256": "180b3b10eb1c9f1b4db7806d5475bae3071c0243c299d49926bab1da3b6946f6"
+        },
+        {
+          "path": "preprocessor_config.json",
+          "bytes": 127,
+          "sha256": "efdde1022ea9d76928bf7a9cd53139138f5ba2e466e837f08f6105ab1af1c119"
+        },
+        {
+          "path": "speech_tokenizer/config.json",
+          "bytes": 2336,
+          "sha256": "ee65bb901c876664ab8707c487157aa1a6ee57c65969b28fb5ec9dc211e68167"
+        },
+        {
+          "path": "speech_tokenizer/configuration.json",
+          "bytes": 76,
+          "sha256": "6bc26d64eb5024b4d1dab5a52371958b429256d6c9d59787f1f5294a54e0cebd"
+        },
+        {
+          "path": "speech_tokenizer/model.safetensors",
+          "bytes": 682293092,
+          "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258"
+        },
+        {
+          "path": "speech_tokenizer/preprocessor_config.json",
+          "bytes": 234,
+          "sha256": "fcb3805e597e786d4067706e602f6688524640f8d3396790e2e09b5942fcbdfb"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "bytes": 7344,
+          "sha256": "dc3c31c3bdaedd5016382bb3cbe07323026775ad51f5a4fb564505992ae4a670"
+        },
+        {
+          "path": "vocab.json",
+          "bytes": 2776833,
+          "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+        }
+      ],
+      "source": "official HF pinned tree; matching official Qwen ModelScope LFS fallback"
+    }
+  ],
+  "runtime_observed_versions": {
+    "accelerate": "1.12.0",
+    "aiofiles": "24.1.0",
+    "annotated-doc": "0.0.5",
+    "annotated-types": "0.8.0",
+    "anyio": "4.15.1",
+    "audioread": "3.1.0",
+    "brotli": "1.2.0",
+    "certifi": "2026.7.22",
+    "cffi": "2.1.1",
+    "charset-normalizer": "3.5.2",
+    "click": "8.5.0",
+    "cloudpickle": "3.1.2",
+    "colorama": "0.4.6",
+    "coloredlogs": "15.0.1",
+    "decorator": "5.3.1",
+    "einops": "0.8.2",
+    "fastapi": "0.143.2",
+    "ffmpy": "1.0.0",
+    "filelock": "3.32.3",
+    "flatbuffers": "25.12.19",
+    "fsspec": "2026.7.0",
+    "gradio": "5.50.0",
+    "gradio_client": "1.14.0",
+    "groovy": "0.1.2",
+    "h11": "0.16.0",
+    "httpcore": "1.0.9",
+    "httpx": "0.28.1",
+    "huggingface_hub": "0.36.2",
+    "humanfriendly": "10.0",
+    "idna": "3.20",
+    "Jinja2": "3.1.6",
+    "joblib": "1.6.0",
+    "lazy-loader": "0.6",
+    "librosa": "0.11.0",
+    "llvmlite": "0.50.0",
+    "markdown-it-py": "4.2.0",
+    "MarkupSafe": "3.0.3",
+    "mdurl": "0.1.2",
+    "mpmath": "1.3.0",
+    "msgpack": "1.2.3",
+    "narwhals": "2.27.1",
+    "networkx": "3.6.1",
+    "numba": "0.68.0",
+    "numpy": "2.2.6",
+    "onnxruntime": "1.23.2",
+    "opentelemetry-api": "1.45.1",
+    "orjson": "3.13.0",
+    "packaging": "26.3",
+    "pandas": "2.3.3",
+    "pillow": "11.3.0",
+    "pip": "25.0.1",
+    "platformdirs": "4.13.3",
+    "pooch": "1.9.0",
+    "protobuf": "7.36.2",
+    "psutil": "7.2.2",
+    "pycparser": "3.11",
+    "pydantic": "2.12.3",
+    "pydantic_core": "2.41.4",
+    "pydub": "0.25.1",
+    "Pygments": "2.21.0",
+    "pyreadline3": "3.5.6",
+    "python-dateutil": "2.9.0.post0",
+    "python-multipart": "0.0.32",
+    "pytz": "2026.5",
+    "PyYAML": "6.0.3",
+    "qwen-tts": "0.1.1",
+    "regex": "2026.9.29",
+    "requests": "2.34.2",
+    "rich": "15.0.0",
+    "ruff": "0.17.1",
+    "safehttpx": "0.1.7",
+    "safetensors": "0.5.3",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.18.1",
+    "semantic-version": "2.10.0",
+    "setuptools": "78.1.0",
+    "shellingham": "1.5.4",
+    "six": "1.17.0",
+    "soundfile": "0.13.1",
+    "sox": "1.4.1",
+    "soxr": "1.1.0",
+    "starlette": "0.52.1",
+    "sympy": "1.13.1",
+    "threadpoolctl": "3.7.0",
+    "tokenizers": "0.22.2",
+    "tomlkit": "0.13.3",
+    "torch": "2.6.0+cu124",
+    "torchaudio": "2.6.0+cu124",
+    "tqdm": "4.70.1",
+    "transformers": "4.57.3",
+    "typer": "0.27.3",
+    "typing_extensions": "4.16.0",
+    "typing-inspection": "0.4.4",
+    "tzdata": "2026.5",
+    "urllib3": "2.8.0",
+    "uvicorn": "0.54.0",
+    "websockets": "15.0.1"
+  },
+  "python_observed": "3.12.10",
+  "packages_provenance": {
+    "package": "qwen-tts",
+    "version": "0.1.1",
+    "pypi_metadata_url": "https://pypi.org/pypi/qwen-tts/0.1.1/json",
+    "wheel": {
+      "filename": "qwen_tts-0.1.1-py3-none-any.whl",
+      "bytes": 113529,
+      "official_pypi_sha256": "11a290d8dabc7ef91a90c54478c8ab19b3edb1d85c0882313721892bdc4af15d",
+      "note": "Independent matching wheel retained under private wheels directory; verified bytes and SHA256 against official PyPI JSON via Tsinghua mirror."
+    },
+    "torch": {
+      "version": "2.6.0+cu124",
+      "origin": "physically copied only torch/torchgen/functorch and dist-info from existing rag-py312 into isolated venv",
+      "note": "No global site-packages access; no claim of original torch wheel hash."
+    },
+    "torchaudio": {
+      "version": "2.6.0+cu124",
+      "index": "https://download.pytorch.org/whl/cu124"
+    },
+    "transformers": {
+      "version": "4.57.3",
+      "wheel_bytes": 11993463,
+      "verified_sha256": "c77d353a4851b1880191603d36acb313411d3577f6e2897814f333841f7003f4",
+      "source": "Tsinghua wheel mirror, verified against official PyPI JSON"
+    }
+  },
+  "notes": [
+    "Observed Windows environment, not a universal dependency lock.",
+    "Torch physically copied into isolated venv; original wheel hash unknown.",
+    "No checkpoint weights or private audio distributed.",
+    "ModelScope transfer files must match immutable official Hugging Face tree hashes."
+  ]
+}

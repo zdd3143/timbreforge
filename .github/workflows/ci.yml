@@ -1,0 +1,75 @@
+name: core-tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unittest:
+    name: core / ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12']
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      HF_HUB_OFFLINE: '1'
+      TRANSFORMERS_OFFLINE: '1'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      GRADIO_ANALYTICS_ENABLED: 'False'
+      # Never inherit an external/private checkout as a core-test prerequisite.
+      TIMBREFORGE_INDEXTTS_NODE_DIR: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install CPU core package only
+        run: python -m pip install .
+      - name: Run offline unittest suite (no GPU or private assets)
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Check installed entry points outside checkout
+        working-directory: ${{ runner.temp }}
+        run: |
+          timbreforge-studio --help
+          timbreforge-synth --help
+          python "${{ github.workspace }}/tools/check_installed.py"
+      - name: Verify committed backend patch fingerprint (no external assets)
+        run: python tools/backend_audit.py
+      - name: Check release source and documentation links
+        run: python tools/release_check.py
+
+  distribution:
+    name: build and install distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build wheel and source distribution
+        run: |
+          python -m pip install build
+          python -m build
+      - name: Check archive contents
+        shell: bash
+        run: |
+          for archive in dist/*.whl dist/*.tar.gz; do
+            python tools/release_check.py --archive "$archive"
+          done
+      - name: Install wheel and check outside checkout
+        shell: bash
+        run: |
+          python -m pip install dist/*.whl
+          cd "$RUNNER_TEMP"
+          timbreforge-studio --help
+          timbreforge-launch --help
+          python "$GITHUB_WORKSPACE/tools/check_installed.py"

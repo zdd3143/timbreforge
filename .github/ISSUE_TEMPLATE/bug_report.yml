@@ -1,0 +1,24 @@
+name: 缺陷报告
+description: 报告安装、导入、生成或存档问题
+title: "[Bug] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题与复现步骤
+      description: 描述操作、预期结果和实际结果，请用合成测试内容替代私人录音。
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 运行环境
+      description: 版本或提交、系统、Python、GPU/显存、使用的后端。
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 脱敏错误信息
+      description: 删除令牌、个人路径和角色隐私后再粘贴；不要附本机配置文件。
+      render: text

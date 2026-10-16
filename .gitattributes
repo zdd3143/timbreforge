@@ -1,0 +1,10 @@
+* text=auto eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+# Backend patch hashes cover the exact bytes; preserve their line endings.
+*.patch -text -whitespace
+*.cmd text eol=crlf

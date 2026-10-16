@@ -1,0 +1,16 @@
+include README.md CHANGELOG.md LICENSE THIRD_PARTY_NOTICES.md CONTRIBUTING.md SECURITY.md
+include .gitignore .gitattributes
+include backend-lock.json qwen-backend-lock.json planner-backend-lock.json timbreforge.example.toml
+include 启动声线工作室.cmd
+recursive-include docs *.md
+recursive-include patches *.md *.patch
+recursive-include tests test_*.py
+recursive-include tools *.py
+recursive-include .github *.yml *.yaml *.md
+prune build
+prune dist
+prune .local-data
+prune private
+global-exclude __pycache__ *.py[cod]
+global-exclude *.wav *.flac *.mp3 *.ogg *.m4a *.mp4 *.pt *.pth *.onnx *.safetensors *.ckpt *.bin
+global-exclude *.doc *.docx *.log *.pem *.key *.pfx *.p12 .env .env.*

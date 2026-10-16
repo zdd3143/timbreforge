@@ -1,0 +1,11 @@
+name: 功能建议
+description: 提出角色声音创作中的具体需求
+title: "[Feature] "
+body:
+  - type: textarea
+    id: request
+    attributes:
+      label: 使用场景与期望行为
+      description: 描述正在完成的创作任务、遇到的限制，以及希望软件如何帮助。
+    validations:
+      required: true

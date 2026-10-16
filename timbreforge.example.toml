@@ -1,0 +1,33 @@
+# Copy to timbreforge.local.toml (ignored), then replace external paths.
+# CLI: python -m timbreforge --config timbreforge.local.toml capabilities
+# Relative paths are relative to THIS file, not your shell working directory.
+[qwen]
+python = "../external/qwen3-tts/.venv/Scripts/python.exe"
+design_model = "../external/qwen3-tts/models/VoiceDesign-1.7B"
+base_model = "../external/qwen3-tts/models/Base-0.6B"
+
+# Optional local language model for character profile -> voice prompt.
+[planner]
+python = "../external/qwen3-tts/.venv/Scripts/python.exe"
+model = "../external/voice-planner/Qwen3-1.7B"
+
+[comfy]
+url = "http://127.0.0.1:8188"
+input_dir = "../external/ComfyUI/input"
+output_dir = "../external/ComfyUI/output"
+
+[cosyvoice]
+repo = "../external/CosyVoice"
+# Windows example. Linux isolated venv usually uses .venv/bin/python.
+python = "../external/CosyVoice/.venv/Scripts/python.exe"
+model = "../external/CosyVoice/pretrained_models/Fun-CosyVoice3-0.5B"
+
+[paths]
+outputs_dir = "./.local-data/outputs"
+characters_dir = "./.local-data/characters"
+
+[scorer]
+python = "../external/ComfyUI/venv/Scripts/python.exe"
+mos_models = "../external/models_mos"
+indextts_repo = "../external/ComfyUI/custom_nodes/ComfyUI-Index-TTS-25/index-tts"
+campplus_checkpoint = "../external/models/campplus_cn_common.bin"

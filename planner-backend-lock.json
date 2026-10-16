@@ -1,0 +1,11 @@
+{
+  "backend": "local_transformers_voice_planner",
+  "model": "Qwen/Qwen3-1.7B",
+  "revision": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+  "source": "https://huggingface.co/Qwen/Qwen3-1.7B",
+  "license": "Apache-2.0",
+  "runtime": "Existing isolated Qwen runtime, transformers 4.57.3",
+  "remote_code": false,
+  "enable_thinking": false,
+  "distribution": "Weights are downloaded separately and are not included in this package."
+}

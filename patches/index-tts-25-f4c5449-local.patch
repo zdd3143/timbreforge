@@ -1,0 +1,243 @@
+diff --git a/index-tts/indextts/infer_v2_5.py b/index-tts/indextts/infer_v2_5.py
+index 6790ce4..acb9744 100644
+--- a/index-tts/indextts/infer_v2_5.py
++++ b/index-tts/indextts/infer_v2_5.py
+@@ -739,6 +739,12 @@ class IndexTTS2:
+         repetition_penalty = generation_kwargs.pop("repetition_penalty", 10.0)
+         max_mel_tokens = generation_kwargs.pop("max_mel_tokens", 1500)
+         sampling_rate = 22050
++        diffusion_steps = int(generation_kwargs.pop("diffusion_steps", 25))
++        if diffusion_steps < 1 or diffusion_steps > 100:
++            raise ValueError("diffusion_steps must be in [1, 100]")
++        inference_cfg_rate = float(generation_kwargs.pop("inference_cfg_rate", 0.7))
++        if inference_cfg_rate < 0.0 or inference_cfg_rate > 2.0:
++            raise ValueError("inference_cfg_rate must be in [0, 2]")
+ 
+         wavs = []
+         gpt_gen_time = 0
+@@ -779,7 +785,7 @@ class IndexTTS2:
+                         emo_vec=emovec,
+                         campplus_embedding=style,
+                         wav=spk_audio_prompt,
+-                        do_sample=True,
++                        do_sample=do_sample,
+                         top_p=top_p,
+                         top_k=top_k,
+                         temperature=temperature,
+@@ -846,8 +852,6 @@ class IndexTTS2:
+                 dtype = None
+                 with torch.amp.autocast(text_tokens.device.type, enabled=dtype is not None, dtype=dtype):
+                     m_start_time = time.perf_counter()
+-                    diffusion_steps = 25
+-                    inference_cfg_rate = 0.7
+                     S_infer = self.semantic_codec.decode(codes)
+                     if self.use_gpt_latent:
+                         latent = self.s2mel.models['gpt_layer'](latent)
+diff --git a/nodes.py b/nodes.py
+index e73ceaa..5f0992f 100644
+--- a/nodes.py
++++ b/nodes.py
+@@ -1,5 +1,6 @@
+ import gc
+ import importlib
++import logging
+ import os
+ import random
+ import re
+@@ -19,6 +20,13 @@ try:
+ except Exception:
+     model_management = None
+ 
++LOGGER = logging.getLogger("IndexTTS2")
++
++
++def _log_timing(message, *fmt_args):
++    """Emit timings through logging so they survive ComfyUI's stderr redirect."""
++    LOGGER.warning("[IndexTTS2] " + (message % fmt_args if fmt_args else message))
++
+ 
+ HERE = Path(__file__).resolve().parent
+ COMFY_ROOT = HERE.parents[1]
+@@ -47,6 +55,7 @@ class IndexTTS25ModelHandle:
+     deepspeed: bool
+     gpt_accel: bool
+     torch_compile: bool
++    need_emo_text: bool = False
+ 
+     def get_model(self):
+         return _get_model(
+@@ -57,6 +66,7 @@ class IndexTTS25ModelHandle:
+             self.deepspeed,
+             self.gpt_accel,
+             self.torch_compile,
++            self.need_emo_text,
+         )
+ 
+ 
+@@ -234,24 +244,32 @@ def _get_model(
+     deepspeed,
+     gpt_accel,
+     torch_compile,
++    need_emo_text=False,
+ ):
+     model_dir = _resolve_model_dir(model_name)
+     model_version = _detect_model_version(model_dir)
+     resolved_device = None if device == "auto" else device
+     key = (
+         str(model_dir), model_version, precision, device, bool(cuda_kernel), bool(deepspeed),
+-        bool(gpt_accel), bool(torch_compile),
++        bool(gpt_accel), bool(torch_compile), bool(need_emo_text),
+     )
+     if MODEL_CACHE["model"] is not None and MODEL_CACHE["key"] == key:
++        _log_timing("model cache HIT (qwen=%s)", bool(need_emo_text))
+         return MODEL_CACHE["model"]
+ 
++    _log_timing("model cache MISS -> building (qwen=%s)", bool(need_emo_text))
+     _clear_model()
++    _build_started = __import__("time").time()
+     IndexTTS2 = _import_indextts(model_version)
++    # QwenEmotion (0.6B) is only needed when the emotion vector is derived from
++    # text. Loading it costs ~1.1 GB of VRAM and, on an 8 GB card, makes
++    # generation roughly 7x slower because the model no longer fits comfortably
++    # in VRAM. The other emotion modes never touch it, so load it on demand.
+     common_kwargs = dict(
+         cfg_path=str(model_dir / "config.yaml"), model_dir=str(model_dir),
+         device=resolved_device, use_cuda_kernel=bool(cuda_kernel),
+         use_deepspeed=bool(deepspeed), use_accel=bool(gpt_accel),
+-        use_torch_compile=bool(torch_compile), use_qwen_emo=True,
++        use_torch_compile=bool(torch_compile), use_qwen_emo=bool(need_emo_text),
+     )
+     if model_version == "2.5":
+         model = IndexTTS2(
+@@ -262,6 +280,12 @@ def _get_model(
+     model._comfy_indextts_version = model_version
+     MODEL_CACHE["key"] = key
+     MODEL_CACHE["model"] = model
++    _log_timing("model built in %.1fs (qwen=%s)", __import__("time").time() - _build_started,
++                bool(need_emo_text))
++    if torch.cuda.is_available():
++        _log_timing("vram after build: alloc=%.2f GB reserved=%.2f GB",
++                    torch.cuda.memory_allocated() / 1024**3,
++                    torch.cuda.memory_reserved() / 1024**3)
+     return model
+ 
+ 
+@@ -279,13 +303,21 @@ def _save_comfy_audio(audio, prefix):
+     handle = tempfile.NamedTemporaryFile(prefix=f"indextts_{prefix}_", suffix=".wav", delete=False)
+     path = handle.name
+     handle.close()
+-    torchaudio.save(path, waveform, int(audio["sample_rate"]))
++    # TorchAudio 2.11 routes save() through TorchCodec, which needs FFmpeg DLLs
++    # that are not present here. soundfile is already a dependency and writes
++    # plain WAV, so use it and keep the [C, T] -> [T, C] transpose soundfile wants.
++    import soundfile as sf
++
++    sf.write(path, waveform.transpose(0, 1).contiguous().numpy(), int(audio["sample_rate"]))
+     return path
+ 
+ 
+ def _load_output_audio(path):
+-    waveform, sample_rate = torchaudio.load(path)
+-    return {"waveform": waveform.float().unsqueeze(0), "sample_rate": int(sample_rate)}
++    import soundfile as sf
++
++    data, sample_rate = sf.read(path, dtype="float32", always_2d=True)
++    waveform = torch.from_numpy(data).transpose(0, 1).contiguous()
++    return {"waveform": waveform.unsqueeze(0), "sample_rate": int(sample_rate)}
+ 
+ 
+ def _comfy_audio_from_infer_result(result):
+@@ -322,7 +354,14 @@ class IndexTTS25ModelLoader:
+                 "deepspeed": ("BOOLEAN", {"default": False}),
+                 "gpt_accel": ("BOOLEAN", {"default": False}),
+                 "torch_compile": ("BOOLEAN", {"default": False}),
+-            }
++            },
++            "optional": {
++                # Off by default: QwenEmotion costs ~1.1 GB VRAM and slows
++                # generation ~7x on 8 GB cards. Only emotion_text /
++                # extra_emotion_text need it, and the Synthesize node loads it
++                # automatically when those modes are selected.
++                "need_emo_text": ("BOOLEAN", {"default": False}),
++            },
+         }
+ 
+     RETURN_TYPES = ("INDEXTTS25_MODEL",)
+@@ -333,7 +372,7 @@ class IndexTTS25ModelLoader:
+ 
+     def load_model(
+         self, model_name, precision, device, cuda_kernel, deepspeed,
+-        gpt_accel, torch_compile,
++        gpt_accel, torch_compile, need_emo_text=False,
+     ):
+         handle = IndexTTS25ModelHandle(
+             model_name=model_name,
+@@ -343,6 +382,7 @@ class IndexTTS25ModelLoader:
+             deepspeed=bool(deepspeed),
+             gpt_accel=bool(gpt_accel),
+             torch_compile=bool(torch_compile),
++            need_emo_text=bool(need_emo_text),
+         )
+         with MODEL_LOCK:
+             handle.get_model()
+@@ -386,6 +426,9 @@ class IndexTTS25Synthesize:
+             },
+             "optional": {
+                 "emotion_audio": ("AUDIO",),
++                "need_emo_text": ("BOOLEAN", {"default": False}),
++                "diffusion_steps": ("INT", {"default": 25, "min": 1, "max": 100, "step": 1}),
++                "inference_cfg_rate": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0, "step": 0.05}),
+             },
+         }
+ 
+@@ -401,7 +444,8 @@ class IndexTTS25Synthesize:
+         calm, emotion_random, duration_factor, interval_silence_ms, text_normalization,
+         max_text_tokens_per_segment, do_sample, temperature, top_p, top_k, num_beams,
+         repetition_penalty, length_penalty, max_mel_tokens, seed, emotion_audio=None,
+-    ):
++        need_emo_text=False, diffusion_steps=25, inference_cfg_rate=0.7,
++    ): 
+         if not isinstance(model, IndexTTS25ModelHandle):
+             raise TypeError("model must come from an IndexTTS 2/2.5 Model Loader node")
+         if not text or not text.strip():
+@@ -425,7 +469,21 @@ class IndexTTS25Synthesize:
+                 torch.cuda.manual_seed_all(seed)
+ 
+             with MODEL_LOCK:
+-                tts = model.get_model()
++                _t_getmodel = __import__("time").time()
++                # Re-resolve on every run so switching to a text-emotion mode
++                # loads QwenEmotion even if a plain model is already cached.
++                tts = _get_model(
++                    model.model_name,
++                    model.precision,
++                    model.device,
++                    model.cuda_kernel,
++                    model.deepspeed,
++                    model.gpt_accel,
++                    model.torch_compile,
++                    bool(need_emo_text) or emotion_mode in {"emotion_text", "extra_emotion_text"},
++                )
++                _log_timing("get_model took %.1fs (mode=%s)", __import__("time").time() - _t_getmodel,
++                            emotion_mode)
+                 model_version = getattr(tts, "_comfy_indextts_version", "2.5")
+                 if model_version == "2" and language not in {"ZH", "EN"}:
+                     raise ValueError(
+@@ -472,8 +530,17 @@ class IndexTTS25Synthesize:
+                         lang=language,
+                         duration_factor=float(duration_factor),
+                         text_normalization=bool(text_normalization),
++                        diffusion_steps=int(diffusion_steps),
++                        inference_cfg_rate=float(inference_cfg_rate),
+                     )
++                _t_infer = __import__("time").time()
+                 result = tts.infer(**infer_kwargs)
++                _log_timing("synthesize took %.1fs (mode=%s, chars=%d)", 
++                            __import__("time").time() - _t_infer, emotion_mode, len(text.strip()))
++                if torch.cuda.is_available():
++                    _log_timing("vram after infer: alloc=%.2f GB peak=%.2f GB",
++                                torch.cuda.memory_allocated() / 1024**3,
++                                torch.cuda.max_memory_allocated() / 1024**3)
+             return (_comfy_audio_from_infer_result(result),)
+         finally:
+             for path in (speaker_path, emotion_path):
