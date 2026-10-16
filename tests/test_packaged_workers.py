@@ -29,7 +29,7 @@ class PackagedWorkerTests(unittest.TestCase):
         previous = get_config().config_path
         self.addCleanup(set_config_path, previous)
         with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
+            root = Path(td).resolve()
             for name in ("one", "two"):
                 cfg = root / f"{name}.toml"
                 cfg.write_text(f'[scorer]\npython = "{name}-python"\n'
@@ -56,7 +56,7 @@ class PackagedWorkerTests(unittest.TestCase):
 
     def test_mos_adapter_uses_current_model_path_and_python(self):
         with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
+            root = Path(td).resolve()
             for name in ("utmos22", "dnsmos"):
                 (root / name).mkdir()
                 (root / name / "model.safetensors").touch()

@@ -12,7 +12,7 @@ from timbreforge.studio import generate,GenerationRequest
 class QwenStudioTests(unittest.TestCase):
     def test_saved_design_identity_uses_base_not_redesign(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td); ref=root/'ref.wav'; raw=root/'raw.wav'
+            root=Path(td).resolve(); ref=root/'ref.wav'; raw=root/'raw.wav'
             sf.write(ref,np.full(2400,.1),24000,subtype='FLOAT')
             sf.write(raw,np.full(4800,.2),24000,subtype='FLOAT')
             store=CharacterStore(root/'cards')
@@ -32,7 +32,7 @@ class QwenStudioTests(unittest.TestCase):
 
     def test_reference_mutation_never_publishes_stale_provenance(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td);ref=root/'ref.wav';raw=root/'raw.wav'
+            root=Path(td).resolve();ref=root/'ref.wav';raw=root/'raw.wav'
             sf.write(ref,np.full(2400,.1),24000,subtype='FLOAT')
             sf.write(raw,np.full(4800,.2),24000,subtype='FLOAT')
             def mutate(*args,**kwargs):

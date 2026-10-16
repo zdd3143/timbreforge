@@ -16,7 +16,7 @@ class ReferenceAssistantTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.source = self.root / '原始 reference.wav'
 
     def write(self, samples, sr=1000):

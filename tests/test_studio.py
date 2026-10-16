@@ -17,7 +17,7 @@ class StudioTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name)
+        self.root = Path(self.tmp.name).resolve()
         self.ref = self.root / 'ref.wav'
         self.raw = self.root / 'output.flac'
         sf.write(self.ref, .1 * np.sin(np.arange(16000)), 16000, subtype='FLOAT')

@@ -10,7 +10,7 @@ class ConfigTests(unittest.TestCase):
     def test_planner_paths_relative_and_env_override(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td)
+            root=Path(td).resolve()
             path=root/'forge.toml'
             path.write_text('[planner]\npython="env/python.exe"\nmodel="models/planner"\n')
             with patch.dict(os.environ,{'TIMBREFORGE_PLANNER_MODEL':str(root/'override')}):
@@ -20,7 +20,7 @@ class ConfigTests(unittest.TestCase):
 
     def test_toml_relative_paths_and_env_override(self):
         with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
+            root = Path(td).resolve()
             cfg = root / 'forge.toml'
             cfg.write_text('[comfy]\nurl = "http://example:8188"\ninput_dir = "in"\n[paths]\noutputs_dir = "out"\n', encoding='utf-8')
             old = os.environ.get('TIMBREFORGE_COMFY_URL')
@@ -37,7 +37,7 @@ class ConfigTests(unittest.TestCase):
     def test_qwen_paths_relative_and_env_override(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
+            root = Path(td).resolve()
             cfg = root / 'forge.toml'
             cfg.write_text('[qwen]\npython="runtime/python.exe"\ndesign_model="models/design"\nbase_model="models/base"\n', encoding='utf-8')
             with patch.dict(os.environ, {'TIMBREFORGE_QWEN_BASE_MODEL': str(root/'override')}):

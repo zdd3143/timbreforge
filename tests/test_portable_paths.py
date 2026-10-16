@@ -19,7 +19,7 @@ class PortablePathTests(unittest.TestCase):
 
     def test_index_and_character_store_follow_new_config(self):
         with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
+            root = Path(td).resolve()
             config = root / 'settings.toml'
             config.write_text('[comfy]\nurl="http://localhost:9191"\ninput_dir="input"\noutput_dir="output"\n[paths]\ncharacters_dir="cards"\n', encoding='utf-8')
             set_config_path(config)
@@ -45,7 +45,7 @@ class PortablePathTests(unittest.TestCase):
 
     def test_default_ping_uses_selected_url(self):
         with tempfile.TemporaryDirectory() as td:
-            p = Path(td) / 'settings.toml'
+            p = Path(td).resolve() / 'settings.toml'
             p.write_text('[comfy]\nurl="http://localhost:9009"\n', encoding='utf-8')
             set_config_path(p)
             response = io.BytesIO(json.dumps({'devices': []}).encode())

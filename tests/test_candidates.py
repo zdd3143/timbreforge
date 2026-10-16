@@ -12,7 +12,7 @@ class CandidateTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.a = self.root / 'a.wav'
         self.b = self.root / 'b.wav'
         x = np.sin(2*np.pi*160*np.arange(16000)/16000)
