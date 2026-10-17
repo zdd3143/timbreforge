@@ -14,7 +14,7 @@ from urllib.parse import unquote, urlparse
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_DIRS = {'timbreforge', 'tests', 'tools', 'docs', 'patches', '.github'}
+SOURCE_DIRS = {'timbreforge', 'tests', 'tools', 'docs', 'examples', 'patches', '.github'}
 ROOT_FILES = {'.gitignore', '.gitattributes', 'README.md', 'CHANGELOG.md', 'LICENSE',
               'CONTRIBUTING.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md', 'MANIFEST.in',
               'pyproject.toml', 'backend-lock.json', 'qwen-backend-lock.json',

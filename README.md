@@ -103,6 +103,7 @@ python tools/backend_audit.py
 
 - [配置说明](docs/CONFIGURATION.md) · [使用指南](docs/USAGE.md) · [多角色创作](docs/CREATION.md)
 - [角色推演与导入](docs/ROLE_PLANNER.md) · [声音设计](docs/VOICE_DESIGN.md) · [参考音频助手](docs/REFERENCE_ASSISTANT.md)
+- [公开角色示例](examples/public-role-profile.md) · [AutoDL 部署](docs/AUTODL.md)
 - [测试说明](docs/TESTING.md) · [发布检查](docs/RELEASING.md) · [更新记录](CHANGELOG.md)
 - [贡献指南](CONTRIBUTING.md) · [安全报告](SECURITY.md)
 
