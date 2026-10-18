@@ -23,12 +23,14 @@
 
 | 预设 | 用途 | 主要步骤 |
 | --- | --- | --- |
-| `clean_voice` 清晰人声 | 大多数干净录音 | 去静音、去点击、轻度降噪、高通 70 Hz + 3.2 kHz 微提、-16 LUFS |
-| `warm_voice` 温暖声线 | 偏冷或偏薄的录音 | 去静音、降噪、低频搁架 +1.5 dB、高频搁架 -1.2 dB、-16 LUFS |
-| `bright_voice` 明亮声线 | 闷、远、偏暗的录音 | 去静音、降噪、高通 90 Hz、4 kHz 微提、7 kHz 搁架 +2 dB、-16 LUFS |
-| `low_noise` 强降噪 | 底噪明显 | 更激进降噪与去点击，可能损失气声与尾音，必须试听 |
+| `clean_voice` 清晰人声 | 大多数干净录音 | 去静音、去点击、保守 Wiener 降噪、高通 70 Hz + 3.2 kHz 微提、-16 LUFS（最多补偿 6 dB） |
+| `warm_voice` 温暖声线 | 偏冷或偏薄的录音 | 保守降噪、低频搁架 +1.5 dB、高频搁架 -1.2 dB、-16 LUFS（最多补偿 6 dB） |
+| `bright_voice` 明亮声线 | 闷、远、偏暗的录音 | 保守降噪、高通 90 Hz、4 kHz 微提、7 kHz 搁架 +2 dB、-16 LUFS（最多补偿 6 dB） |
+| `low_noise` 强降噪 | 底噪明显 | 限幅的较强降噪与去点击，最多补偿 4 dB，可能损失气声与尾音，必须试听 |
 
 预设是**起点**，不是音质保证。每次选择内置预设都会从角色卡的原始 `reference.wav` 重新处理，不会把上一次预设继续叠加到下一次；处理后请试听换气、齿音、尾音和情绪是否仍自然。
+
+音频修整页还提供“高级修整（保守模式）”：可以单独调节降噪强度和最大响度补偿，再从原始参考音频生成一条新的派生链。降噪强度越高越容易损失气声；最大补偿用于防止安静录音把底噪一起放大。
 
 ## 非破坏性保证
 
@@ -53,7 +55,7 @@
       {"type": "highpass", "freq": 70, "gain_db": 0, "q": 0.707},
       {"type": "peaking", "freq": 3200, "gain_db": 0.8, "q": 1.0}
     ]},
-    {"name": "normalize", "target_lufs": -16, "ceiling_dbfs": -1}
+    {"name": "normalize", "target_lufs": -16, "ceiling_dbfs": -1, "max_gain_db": 6}
   ],
   "output_audio": "audio/canonical-….wav",
   "output_hash": "…",
@@ -72,7 +74,8 @@
 ## 测量口径与限制
 
 - 响度按 ITU-R BS.1770 的 K 加权、400 ms 块、绝对 -70 LUFS 与相对 -10 LU 门限估算，输出 `LUFS`；这是工程近似，不是认证响度计。
-- EQ 与降噪使用 NumPy 实现的 RBJ 双二阶频响与简化谱减，适合短参考音频，不是录音棚级母带处理。
+- 降噪使用低能量帧中位噪声功率谱、受限 Wiener 增益、时频平滑和重叠相加，借鉴传统语音增强中对 musical noise 的抑制思路；适合短参考音频，不是录音棚级母带处理。实时场景可进一步接入 [RNNoise](https://github.com/xiph/rnnoise) 或 [DeepFilterNet](https://github.com/Rikorose/DeepFilterNet)，但这两个模型不作为核心安装依赖。
+- 响度标准化有最大增益上限，过于安静的录音不会被强行推到目标 LUFS，避免把残余底噪一起放大。
 - 输出超过 0 dBFS 时会整体衰减并写入说明，不会硬削波。
 - WAV 主文件使用 FLOAT；预览使用 OGG/Vorbis，编码器不可用时退回 FLAC 或 PCM WAV。
 

@@ -336,7 +336,23 @@ def run(request):
             kwargs['device'] = 'cpu'
             return original_safe_open(filename, *args, **kwargs)
         modeling_utils.safe_open = staged_safe_open
-    model_kwargs = dict(device_map=device, dtype=getattr(torch,dtype),
+    # Qwen3-TTS was trained with BF16 and its small code predictor is unstable
+    # in FP16 on older CUDA architectures.  That failure surfaces as a generic
+    # device-side assert during long or multilingual cloning.  Select a safe
+    # compute dtype inside this isolated process while retaining the requested
+    # dtype in provenance.
+    compute_dtype = dtype
+    if cuda and dtype == 'float16':
+        get_capability = getattr(torch.cuda, 'get_device_capability', None)
+        # Test doubles and older torch builds may not expose capability or
+        # bfloat16; keep their requested FP16 behaviour in that case.
+        capability = get_capability(device) if callable(get_capability) else (7, 0)
+        compute_dtype = 'bfloat16' if tuple(capability) >= (8, 0) else 'float32'
+        if compute_dtype == 'bfloat16' and not hasattr(torch, 'bfloat16'):
+            compute_dtype = dtype
+        if compute_dtype != dtype:
+            print(f'Qwen: requested {dtype}; using {compute_dtype} for CUDA stability.', flush=True)
+    model_kwargs = dict(device_map=device, dtype=getattr(torch,compute_dtype),
                         attn_implementation=attention, local_files_only=True,
                         low_cpu_mem_usage=True)
     try:
@@ -375,7 +391,7 @@ def run(request):
                                    ref_text=request['ref_text'], item=result_prompt[0])
         return dict(file=str(output), mode=mode, model_dir=str(model_dir),
                     model_config_sha256=config_hash, qwen_package_version=version,
-                    device=device, dtype=dtype, attention=attention,
+                    device=device, dtype=dtype, compute_dtype=compute_dtype, attention=attention,
                     reference_sha256=reference_hash, clone_mode=clone_mode,
                     clone_prompt_sha256=None, prompt_sha256=_sha256(output),
                     adapter=adapter_info,
@@ -418,6 +434,15 @@ def run(request):
                 raise ValueError('Invalid clone chunk waveform')
             pieces.append(piece)
             sample_rate = rate
+            # Do not retain decoder graphs or temporary GPU tensors between
+            # long-form chunks.  The waveform has already been copied to CPU.
+            del chunk
+            if cuda:
+                import gc
+                gc.collect()
+                empty_cache = getattr(torch.cuda, 'empty_cache', None)
+                if callable(empty_cache):
+                    empty_cache()
         waves = [np.concatenate(pieces)]
     generated = time.perf_counter()
     if not isinstance(waves, (list, tuple)) or len(waves) != 1:
@@ -433,7 +458,7 @@ def run(request):
     return dict(file=str(output), mode=mode, params=params, seed=seed, sample_rate=sample_rate,
         duration=len(wave)/sample_rate, output_subtype='FLOAT', model_dir=str(model_dir),
         model_config_sha256=config_hash, qwen_package_version=version, device=device,
-        dtype=dtype, attention=attention, reference_sha256=reference_hash,
+        dtype=dtype, compute_dtype=compute_dtype, attention=attention, reference_sha256=reference_hash,
         clone_mode=clone_mode, clone_prompt_sha256=prompt_hash if mode == 'voice_clone' and request.get('clone_prompt') else None,
         adapter=adapter_info,
         reference_cropped=False, ref_text_used=mode=='voice_clone',

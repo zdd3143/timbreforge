@@ -268,10 +268,14 @@ def _denoise(x, sample_rate, strength=0.35, window_ms=32, noise_seconds=0.35):
     if len(x) < window * 2:
         return x, ['音频过短，未执行降噪。']
     taper = np.hanning(window)
+    # A short symmetric pad lets overlap-add reconstruct the first and last
+    # speech frames without the boundary attenuation of the previous chain.
+    pad = window // 2
     result = np.empty_like(x)
     for channel in range(x.shape[1]):
         signal = x[:, channel]
-        frames = np.lib.stride_tricks.sliding_window_view(signal, window)[::hop]
+        padded = np.pad(signal, (pad, pad), mode='reflect')
+        frames = np.lib.stride_tricks.sliding_window_view(padded, window)[::hop]
         spectrum = np.fft.rfft(frames * taper, axis=1)
         magnitude = np.abs(spectrum)
         # Estimate the stationary noise from the quietest frames.  The old
@@ -282,39 +286,46 @@ def _denoise(x, sample_rate, strength=0.35, window_ms=32, noise_seconds=0.35):
         frame_count = max(2, min(len(frame_energy),
                                  int(round(noise_seconds * sample_rate / hop))))
         quiet = np.argsort(frame_energy)[:frame_count]
-        profile = np.median(magnitude[quiet], axis=0)
-        # Wiener-style suppression preserves speech bins while attenuating bins
-        # whose energy is close to the measured noise floor.  A small floor keeps
-        # fricatives and breath from becoming metallic at high strength.
-        noise_power = np.square(profile)
+        # Use a robust median PSD from the quietest frames.  Estimating power
+        # before taking the median is less sensitive to one accidental breath
+        # than subtracting a raw magnitude spectrum.
+        noise_power = np.median(np.square(magnitude[quiet]), axis=0)
         signal_power = np.square(magnitude)
-        alpha = 1.0 + 7.0 * float(strength)
-        wiener = signal_power / (signal_power + alpha * noise_power + _EPS)
-        floor = max(0.015, 0.08 - 0.06 * float(strength))
+        # Oversubtraction is bounded.  A residual floor and temporal smoothing
+        # reduce the musical-noise chirps produced by hard spectral gates.
+        alpha = 0.8 + 2.2 * float(strength)
+        snr = np.maximum(signal_power - alpha * noise_power, 0.0)
+        wiener = snr / (signal_power + alpha * noise_power + _EPS)
+        floor = 0.10 - 0.05 * float(strength)
         gain = floor + (1.0 - floor) * wiener
-        # Smooth the mask over frequency bins to avoid metallic "musical noise".
         if gain.shape[1] > 4:
-            padded = np.pad(gain, ((0, 0), (1, 1)), mode='edge')
-            gain = 0.25 * padded[:, :-2] + 0.5 * padded[:, 1:-1] + 0.25 * padded[:, 2:]
+            gain_pad = np.pad(gain, ((0, 0), (1, 1)), mode='edge')
+            gain = 0.25 * gain_pad[:, :-2] + 0.5 * gain_pad[:, 1:-1] + 0.25 * gain_pad[:, 2:]
+        if gain.shape[0] > 2:
+            smoothed = gain.copy()
+            smoothed[1:-1] = 0.25 * gain[:-2] + 0.5 * gain[1:-1] + 0.25 * gain[2:]
+            gain = smoothed
         restored = np.fft.irfft(spectrum * gain, n=window, axis=1) * taper
-        length = len(signal) + window
-        summed = np.zeros(length)
-        weights = np.zeros(length)
+        summed = np.zeros(len(padded))
+        weights = np.zeros(len(padded))
         for index in range(restored.shape[0]):
             begin = index * hop
             summed[begin:begin + window] += restored[index]
             weights[begin:begin + window] += taper * taper
-        result[:, channel] = summed[:len(signal)] / np.maximum(weights[:len(signal)], 1e-8)
-    note = (f'基础降噪：强度 {strength:g}，噪声谱取低能量分位与开头 '
-            f'{noise_seconds:g}s 的较小值。')
+        reconstructed = summed / np.maximum(weights, 1e-8)
+        result[:, channel] = reconstructed[pad:pad + len(signal)]
+    note = (f'保守频谱降噪：强度 {strength:g}，使用低能量帧中位噪声谱、'
+            f'受限 Wiener 增益和时频平滑（估计 {noise_seconds:g}s）。')
     return result, [note]
 
 
-def _normalize(x, sample_rate, target_lufs=-16.0, ceiling_dbfs=-1.0):
+def _normalize(x, sample_rate, target_lufs=-16.0, ceiling_dbfs=-1.0, max_gain_db=8.0):
     measured = measure_loudness(x, sample_rate)
     if not math.isfinite(measured):
         raise ChainError('音频能量过低，无法测量响度。')
-    gain_db = target_lufs - measured
+    requested_gain = target_lufs - measured
+    gain_db = min(requested_gain, float(max_gain_db))
+    gain_limited = gain_db < requested_gain
     peak_after = measure_peak_dbfs(x) + gain_db
     limited = False
     if peak_after > ceiling_dbfs:
@@ -322,6 +333,8 @@ def _normalize(x, sample_rate, target_lufs=-16.0, ceiling_dbfs=-1.0):
         limited = True
     output = x * (10 ** (gain_db / 20.0))
     note = f'响度标准化：{measured:.1f} → {measure_loudness(output, sample_rate):.1f} LUFS。'
+    if gain_limited:
+        note += f' 输入过低，仅提升 {gain_db:.1f} dB（上限 {max_gain_db:.1f} dB），避免把底噪一起放大。'
     if limited:
         note += ' 受峰值上限限制，未完全达到目标响度。'
     return output, [note]

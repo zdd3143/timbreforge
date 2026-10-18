@@ -11,31 +11,31 @@ from timbreforge.audio_edit_schema import validate_operations
 PRESETS = {
     'clean_voice': {
         'label': '清晰人声',
-        'description': '去掉首尾静音与点击，轻度降噪并补一点存在感，适合大多数干净录音。',
+        'description': '保守去静音、去点击和降噪，限制响度补偿，尽量保留气声与尾音。',
         'operations': [
             {'name': 'trim_silence', 'threshold_db': -42, 'keep_leading_ms': 50, 'keep_trailing_ms': 80},
             {'name': 'de_click', 'threshold': 5.5, 'window': 5},
-            {'name': 'denoise', 'strength': 0.6, 'window_ms': 32, 'noise_seconds': 0.35},
+            {'name': 'denoise', 'strength': 0.45, 'window_ms': 32, 'noise_seconds': 0.35},
             {'name': 'eq', 'bands': [
                 {'type': 'highpass', 'freq': 70, 'gain_db': 0, 'q': 0.707},
                 {'type': 'peaking', 'freq': 3200, 'gain_db': 0.8, 'q': 1.0},
             ]},
-            {'name': 'normalize', 'target_lufs': -16, 'ceiling_dbfs': -1},
+            {'name': 'normalize', 'target_lufs': -16, 'ceiling_dbfs': -1, 'max_gain_db': 6},
         ],
     },
     'warm_voice': {
         'label': '温暖声线',
-        'description': '略微加厚低频并收一点高频齿音，适合偏冷或偏薄的原声。',
+        'description': '在保守降噪后略微加厚低频并收一点高频，避免把底噪推回前景。',
         'operations': [
             {'name': 'trim_silence', 'threshold_db': -42, 'keep_leading_ms': 50, 'keep_trailing_ms': 80},
             {'name': 'de_click', 'threshold': 5.5, 'window': 5},
-            {'name': 'denoise', 'strength': 0.5, 'window_ms': 32, 'noise_seconds': 0.35},
+            {'name': 'denoise', 'strength': 0.4, 'window_ms': 32, 'noise_seconds': 0.35},
             {'name': 'eq', 'bands': [
                 {'type': 'highpass', 'freq': 65, 'gain_db': 0, 'q': 0.707},
                 {'type': 'lowshelf', 'freq': 180, 'gain_db': 1.5, 'q': 0.707},
                 {'type': 'highshelf', 'freq': 6500, 'gain_db': -1.2, 'q': 0.707},
             ]},
-            {'name': 'normalize', 'target_lufs': -16, 'ceiling_dbfs': -1},
+            {'name': 'normalize', 'target_lufs': -16, 'ceiling_dbfs': -1, 'max_gain_db': 6},
         ],
     },
     'bright_voice': {
@@ -44,18 +44,18 @@ PRESETS = {
         'operations': [
             {'name': 'trim_silence', 'threshold_db': -42, 'keep_leading_ms': 50, 'keep_trailing_ms': 80},
             {'name': 'de_click', 'threshold': 5.5, 'window': 5},
-            {'name': 'denoise', 'strength': 0.5, 'window_ms': 32, 'noise_seconds': 0.35},
+            {'name': 'denoise', 'strength': 0.4, 'window_ms': 32, 'noise_seconds': 0.35},
             {'name': 'eq', 'bands': [
                 {'type': 'highpass', 'freq': 90, 'gain_db': 0, 'q': 0.707},
                 {'type': 'peaking', 'freq': 4000, 'gain_db': 0.8, 'q': 1.0},
                 {'type': 'highshelf', 'freq': 7000, 'gain_db': 2.0, 'q': 0.707},
             ]},
-            {'name': 'normalize', 'target_lufs': -16, 'ceiling_dbfs': -1},
+            {'name': 'normalize', 'target_lufs': -16, 'ceiling_dbfs': -1, 'max_gain_db': 6},
         ],
     },
     'low_noise': {
         'label': '强降噪',
-        'description': '更积极地降低底噪，代价是可能损失气声与尾音；处理后务必试听。',
+        'description': '较强但仍有限幅的降噪；只适合底噪明显的录音，可能损失气声。',
         'operations': [
             {'name': 'trim_silence', 'threshold_db': -50, 'keep_leading_ms': 30, 'keep_trailing_ms': 50},
             {'name': 'de_click', 'threshold': 4.5, 'window': 5},
@@ -63,7 +63,7 @@ PRESETS = {
             {'name': 'eq', 'bands': [
                 {'type': 'highpass', 'freq': 80, 'gain_db': 0, 'q': 0.707},
             ]},
-            {'name': 'normalize', 'target_lufs': -16, 'ceiling_dbfs': -1.5},
+            {'name': 'normalize', 'target_lufs': -16, 'ceiling_dbfs': -1.5, 'max_gain_db': 4},
         ],
     },
 }

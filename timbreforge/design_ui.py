@@ -18,6 +18,7 @@ PROMPT_PRESETS = {
 PARAM_FIELDS = ('seed', 'language', 'do_sample', 'temperature', 'top_p', 'top_k',
                 'repetition_penalty', 'max_new_tokens', 'subtalker_dosample',
                 'subtalker_temperature', 'subtalker_top_p', 'subtalker_top_k')
+VOICE_DESIGN_LANGUAGES = ['Chinese', 'Japanese', 'English']
 
 
 def design_store(root=None):
@@ -47,7 +48,10 @@ def _params(values):
         if type(values[key]) is not bool:
             raise ValueError(f'{key} 必须是布尔值')
     from timbreforge.backend_qwen import QwenParams
-    return QwenParams(**values)
+    params = QwenParams(**values)
+    if params.language not in VOICE_DESIGN_LANGUAGES:
+        raise ValueError('声线设计只支持中文、日语和英语。')
+    return params
 
 
 def generate_design(prompt, text, values, count=1, device='cuda:0', confirmed=False, root=None):
@@ -115,6 +119,24 @@ def save_design_character(session_id, candidate_id, name, confirmed=False, root=
     return store.save_character(session_id, candidate_id, name.strip(), confirmed=True)
 
 
+def save_design_candidate(session_id, candidate_id, name, root=None):
+    """Save either visible A/B candidate directly from the save action.
+
+    The old review flow required a separate favourite/select action.  The UI
+    now treats pressing "save A" or "save B" as the explicit choice and keeps
+    the legacy ``save_design_character`` API available for older callers.
+    """
+    if not session_id or not candidate_id:
+        raise ValueError('请选择要保存的候选。')
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError('请填写角色名称。')
+    store = design_store(root)
+    # Persist the same selection metadata used by the legacy store, but do it
+    # as part of the save click so the user never has to confirm it separately.
+    store.select(session_id, candidate_id, favorite=False, note='')
+    return store.save_character(session_id, candidate_id, name.strip(), confirmed=True)
+
+
 def design_audio(session_id, candidate_id, root=None):
     if not session_id or not candidate_id:
         return None
@@ -162,10 +184,10 @@ def build_design_tab(gr, synthesis_options=None):
 
     def details(session_id, candidate_id):
         if not session_id or not candidate_id:
-            return None, False, '', None
+            return None, None
         session = load_session(session_id)
         candidate = next(c for c in session['candidates'] if c['id'] == candidate_id)
-        return design_audio(session_id, candidate_id), candidate['favorite'], candidate['note'], dict(
+        return design_audio(session_id, candidate_id), dict(
             candidate=candidate, selected=session.get('selected_candidate_id') == candidate_id,
             note='后端元数据不是听感或身份质量保证；请人工选择。')
 
@@ -197,7 +219,7 @@ def build_design_tab(gr, synthesis_options=None):
                     seed = gr.Number(value=42, precision=0, label='起始种子', elem_id='design_seed')
                     count = gr.Slider(1,4,value=1,step=1,label='本次候选数',elem_id='design_count')
                     device = gr.Dropdown(choices=[('GPU / cuda:0','cuda:0'),('CPU / cpu','cpu')],value='cuda:0',label='设备',elem_id='design_device')
-                    language = gr.Dropdown(choices=['Auto','Chinese','English','Japanese','Korean','German','French','Russian','Portuguese','Spanish','Italian'],value='Chinese',label='语言',elem_id='design_language')
+                    language = gr.Dropdown(choices=VOICE_DESIGN_LANGUAGES,value='Chinese',label='语言',elem_id='design_language')
                 gr.Markdown('建议先生成 1 个候选，再调整描述或种子。首次生成需要加载模型，请稍候。')
                 with gr.Accordion('进阶：采样参数',open=False):
                     do_sample = gr.Checkbox(value=True,label='do_sample',elem_id='design_do_sample')
@@ -219,9 +241,9 @@ def build_design_tab(gr, synthesis_options=None):
                     refresh = gr.Button('刷新角色库记录',elem_id='design_refresh')
                     load = gr.Button('加载会话',elem_id='design_load')
                 append = gr.Button('追加候选 · 保留原描述和台词',interactive=False,elem_id='design_append')
-                status = gr.Markdown('生成后先试听并明确选用候选，再保存到角色库。这里不显示未入库的旧草稿。', elem_id='design_status')
+                status = gr.Markdown('生成后直接试听 A 或 B，填写名称即可保存到角色库。这里不显示未入库的旧草稿。', elem_id='design_status')
                 with gr.Row():
-                    a = gr.Dropdown(choices=[],label='候选 A（选择/收藏/备注对象）',elem_id='design_a')
+                    a = gr.Dropdown(choices=[],label='候选 A',elem_id='design_a')
                     b = gr.Dropdown(choices=[],label='候选 B',elem_id='design_b')
                 with gr.Row():
                     audio_a = gr.Audio(type='filepath',interactive=False,label='设计 A',elem_id='design_audio_a')
@@ -229,22 +251,24 @@ def build_design_tab(gr, synthesis_options=None):
                 with gr.Row():
                     play_a = gr.Button('试听 A',elem_id='design_play_a')
                     play_b = gr.Button('试听 B',elem_id='design_play_b')
-                    matching = gr.Checkbox(value=False,label='RMS 试听音量匹配（非 LUFS；不改原音）',elem_id='design_matching')
-                    compare = gr.Button('准备 A/B 试听',elem_id='design_compare')
-                with gr.Accordion('试听处理详情', open=False):
-                    compare_report = gr.JSON(label='试听副本处理说明',elem_id='design_compare_report')
-                favorite = gr.Checkbox(value=False,label='收藏候选 A',elem_id='design_favorite')
-                note = gr.Textbox(label='候选 A 的人工备注',elem_id='design_note')
-                select = gr.Button('明确选用 A 并保存收藏/备注',elem_id='design_select')
                 with gr.Accordion('候选生成记录', open=False):
                     metadata = gr.JSON(label='候选后端记录与人工选择（不自动排名）',elem_id='design_metadata')
                 gr.Markdown('### 03 / 保存到角色库\n为喜欢的声音命名；保存成功后它才会进入统一角色库，供角色复用和多角色项目使用。')
                 gr.Markdown('保存的是选定设计的原始参考音频与已知台词，不是把提示词当声音身份。后续角色复用使用 Qwen Base 0.6B 参考克隆；'
                             '不重复设计提示词。参考必须 ≤30 秒，超长会报错，不会静默裁切。')
-                save_confirm = gr.Checkbox(value=False, label='我已试听核对：选定音频与试听台词逐字对应，并确认可作为合成角色参考。', elem_id='design_save_confirm')
                 with gr.Row():
-                    character_name = gr.Textbox(label='保存角色名称',elem_id='design_character_name')
-                    save = gr.Button('将已选 A 保存为角色',elem_id='design_save')
+                    character_name_a = gr.Textbox(label='角色名称 A',elem_id='design_character_name_a')
+                    save = gr.Button('保存 A 到角色库',elem_id='design_save')
+                with gr.Row():
+                    character_name_b = gr.Textbox(label='角色名称 B',elem_id='design_character_name_b')
+                    save_b = gr.Button('保存 B 到角色库',elem_id='design_save_b')
+                # Kept invisible for clients that still call the old API name;
+                # the visible workflow never exposes a favourite/confirmation
+                # step anymore.
+                legacy_confirm = gr.Checkbox(value=True, visible=False,
+                                              elem_id='design_save_confirm')
+                legacy_select = gr.Button('legacy select', visible=False,
+                                          elem_id='design_select')
                 card_status = gr.Markdown(elem_id='design_card_status')
                 with gr.Accordion('角色存档详情', open=False):
                     card_report = gr.JSON(label='已保存角色（到角色复用页刷新）',elem_id='design_card')
@@ -279,18 +303,16 @@ def build_design_tab(gr, synthesis_options=None):
         return (*update_session(session), *(values[key] for key in PARAM_FIELDS),
                 selected['result'].get('device', session['device']) if selected else session['device'], *candidates)
     load.click(safe(load_recipe),sessions,outputs+controls+[device,a,b],api_name='design_load')
-    state.change(safe(candidate_choices),[state,a,b],[a,b]).then(safe(details),[sessions,a],[audio_a,favorite,note,metadata]).then(safe(design_audio),[sessions,b],audio_b)
-    a.change(safe(details),[sessions,a],[audio_a,favorite,note,metadata])
+    state.change(safe(candidate_choices),[state,a,b],[a,b]).then(safe(details),[sessions,a],[audio_a,metadata]).then(safe(design_audio),[sessions,b],audio_b)
+    a.change(safe(details),[sessions,a],[audio_a,metadata])
     b.change(safe(design_audio),[sessions,b],audio_b)
-    select.click(safe(lambda sid,cid,f,n:update_session(select_design(sid,cid,f,n))),[sessions,a,favorite,note],outputs,api_name='design_select')
-    def save_view(*args):
-        card = save_design_character(*args)
+    def save_view(sid, cid, name):
+        card = save_design_candidate(sid, cid, name)
         return card, '角色已保存。打开「角色复用」，点击刷新并选择角色，即可输入新台词。'
-    save.click(safe(save_view),[sessions,a,character_name,save_confirm],[card_report,card_status],api_name='design_save',**synthesis_options)
-    def compare_view(sid,av,bv,match):
-        result=compare_designs(sid,av,bv,match)
-        return result['a'],result['b'],result
-    compare.click(safe(compare_view),[sessions,a,b,matching],[audio_a,audio_b,compare_report])
+    save.click(safe(save_view),[sessions,a,character_name_a],[card_report,card_status],api_name='design_save',**synthesis_options)
+    save_b.click(safe(save_view),[sessions,b,character_name_b],[card_report,card_status],api_name='design_save_b',**synthesis_options)
+    legacy_select.click(safe(lambda sid, cid: update_session(select_design(sid, cid, False, ''))),
+                        [sessions, a], outputs, api_name='design_select')
     for button,own,other in ((play_a,'a','b'),(play_b,'b','a')):
         button.click(fn=None,js=f"() => {{ document.querySelectorAll('#design_audio_{other} audio').forEach(a => a.pause()); const own=Array.from(document.querySelectorAll('#design_audio_{own} audio')).findLast(a => a.src); if(own) {{ own.currentTime=0; own.play().catch(()=>{{}}); }} }}")
 

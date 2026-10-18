@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from timbreforge import character_audio, clone_prompts, ui_tasks
-from timbreforge.audio_presets import preset_choices, preset_names
+from timbreforge.audio_presets import get_preset, preset_choices, preset_names
 from timbreforge.characters import CharacterStore
 from timbreforge.voice_recipe import (RECIPE_EXAMPLES, describe, details,
                                       empty_recipe, suggest_from_prompt)
@@ -103,6 +103,36 @@ def apply_preset(role_id, preset_name, *, store=None):
 
     payload = ui_tasks.run_heavy('audio_edit', task, role_id=role_id,
                                  payload={'preset': preset_name})
+    if not payload:
+        raise RuntimeError('音频处理没有返回结果。')
+    return _apply_view(payload)
+
+
+def apply_custom_cleanup(role_id, strength, max_gain_db, *, store=None):
+    """Render the conservative chain with two safe user-controlled limits."""
+    if not role_id:
+        raise ValueError('请先选择角色。')
+    if type(strength) not in (int, float) or not 0 <= float(strength) <= 1:
+        raise ValueError('降噪强度必须在 0–1 之间。')
+    if type(max_gain_db) not in (int, float) or not 0 <= float(max_gain_db) <= 12:
+        raise ValueError('响度补偿上限必须在 0–12 dB 之间。')
+    operations = get_preset('clean_voice')['operations']
+    for operation in operations:
+        if operation['name'] == 'denoise':
+            operation['strength'] = float(strength)
+        elif operation['name'] == 'normalize':
+            operation['max_gain_db'] = float(max_gain_db)
+
+    def task(context):
+        result = character_audio.render_custom(role_id, operations, preset='custom_cleanup', store=store)
+        return {'card': result['card'], 'document': result['document'],
+                'preview': result['preview'], 'metrics': result['metrics'],
+                'notes': result['notes'], 'summary': result['summary'],
+                'output_path': result['output_path']}
+
+    payload = ui_tasks.run_heavy('audio_edit', task, role_id=role_id,
+                                 payload={'preset': 'custom_cleanup', 'strength': strength,
+                                          'max_gain_db': max_gain_db})
     if not payload:
         raise RuntimeError('音频处理没有返回结果。')
     return _apply_view(payload)
@@ -230,6 +260,13 @@ def build_character_tabs(gr):
                                     elem_id='audio_result')
         preset = gr.Dropdown(label='内置预设', choices=preset_choices(),
                              value='clean_voice', elem_id='audio_preset')
+        with gr.Accordion('高级修整（保守模式）', open=False):
+            custom_strength = gr.Slider(0, 1, value=.45, step=.05,
+                                         label='降噪强度（越高越容易损失气声）',
+                                         elem_id='audio_custom_strength')
+            custom_gain = gr.Slider(0, 12, value=6, step=.5,
+                                     label='最大响度补偿（dB）', elem_id='audio_custom_gain')
+            custom_button = gr.Button('按当前参数生成派生音频', elem_id='audio_custom_apply')
         with gr.Row():
             apply_button = gr.Button('应用预设并生成标准音频', variant='primary',
                                      elem_id='audio_apply')
@@ -265,6 +302,17 @@ def build_character_tabs(gr):
 
         apply_button.click(do_apply, [picker, preset], [current_audio, result_audio, status, history],
                            api_name='audio_apply')
+
+        def do_custom(role_id, strength, max_gain):
+            try:
+                audio_path, message = apply_custom_cleanup(role_id, strength, max_gain)
+            except (OSError, ValueError, RuntimeError, TypeError) as exc:
+                return None, None, f'处理失败：{exc}', gr.update()
+            return audio_path, audio_path, message, history_rows(role_id)
+
+        custom_button.click(do_custom, [picker, custom_strength, custom_gain],
+                            [current_audio, result_audio, status, history],
+                            api_name='audio_custom_apply')
 
         def do_revert(role_id):
             try:

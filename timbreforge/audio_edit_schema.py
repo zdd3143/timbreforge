@@ -39,6 +39,9 @@ _SPECS = {
     'normalize': {
         'target_lufs': ('number', -40.0, -6.0, -16.0),
         'ceiling_dbfs': ('number', -6.0, 0.0, -1.0),
+        # Prevent a quiet/noisy reference from being amplified until its noise
+        # floor becomes the dominant sound after denoising.
+        'max_gain_db': ('number', 0.0, 24.0, 8.0),
     },
     'compress': {
         'threshold_db': ('number', -60.0, 0.0, -18.0),

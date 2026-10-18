@@ -139,6 +139,27 @@ def _worker_env():
                 TRANSFORMERS_OFFLINE='1', HF_HUB_DISABLE_TELEMETRY='1')
 
 
+def _language_for_text(text, requested):
+    """Keep the requested language unless the text clearly identifies another.
+
+    Qwen's codec language token must match the target text.  Long-form cloning
+    historically reused the character card's default Chinese value for Japanese
+    or English passages, which can fail inside CUDA before a useful exception is
+    returned.  Only unambiguous script signals trigger an automatic correction;
+    mixed Chinese/Japanese text keeps the user's explicit choice.
+    """
+    if not isinstance(text, str):
+        return requested
+    has_kana = any(('\u3040' <= char <= '\u30ff') for char in text)
+    has_cjk = any('\u3400' <= char <= '\u9fff' for char in text)
+    latin = sum(('A' <= char <= 'Z') or ('a' <= char <= 'z') for char in text)
+    if requested in ('Auto', 'Chinese') and has_kana:
+        return 'Japanese'
+    if requested in ('Auto', 'Chinese') and latin >= 8 and not has_cjk and not has_kana:
+        return 'English'
+    return requested
+
+
 def _kill_process(process):
     """Terminate a worker and any child it may have started."""
     try:
@@ -285,6 +306,10 @@ def _run(mode, text, params, *, instruction='', ref_audio=None, ref_text='',
     if not isinstance(params, QwenParams):
         raise ValueError('params must be QwenParams')
     values = params.to_dict()
+    # Voice cards may have been created with the default Chinese language while
+    # a later long-form passage is Japanese or English.  Correct only clear
+    # script mismatches so the codec receives a valid language token.
+    values['language'] = _language_for_text(text, values['language'])
     text = _text(text, 'text')
     _options(device, dtype, attention)
     if adapter_path is not None:
