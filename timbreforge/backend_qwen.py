@@ -171,12 +171,20 @@ def _run(mode, text, params, *, instruction='', ref_audio=None, ref_text='',
             with log_file.open('rb') as stream:
                 stream.seek(max(0, log_file.stat().st_size - 8192))
                 tail = stream.read().decode('utf-8', errors='replace')
+            if result is None and tail.strip():
+                detail = f'no valid worker result; worker log tail: {tail.strip()[-4000:]}'
             memory_failure = is_memory_error(f'{detail} {tail} {process.returncode}')
             if memory_failure and attempt == 0:
                 continue
             if memory_failure:
-                detail = ('内存或 GPU 显存不足：已退出失败模型并释放闲置功能，自动重试一次仍失败。'
-                          '请缩短单次台词或释放其它应用占用；no automatic CPU fallback。')
+                pagefile_failure = any(token in f'{detail} {tail}'.lower()
+                                       for token in ('1455', 'pagefile', '页面文件'))
+                if pagefile_failure:
+                    detail = ('Windows 页面文件不足：已退出失败模型并释放闲置功能，自动重试一次仍失败。'
+                              '请将系统页面文件上限提高到至少 32 GB 后重启电脑，再重新生成。')
+                else:
+                    detail = ('内存或 GPU 显存不足：已退出失败模型并释放闲置功能，自动重试一次仍失败。'
+                              '请缩短单次台词或释放其它应用占用；no automatic CPU fallback。')
             raise RuntimeError(f'Qwen worker failed (exit {process.returncode}): {detail}; see {log_file}')
     expected = dict(file=str(output), mode=mode, params=values, seed=params.seed,
                     model_dir=str(model), device=device, dtype=dtype, attention=attention,

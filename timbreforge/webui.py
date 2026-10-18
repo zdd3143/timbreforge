@@ -17,6 +17,8 @@ import os
 import random
 import shutil
 import sys
+import threading
+import time
 from pathlib import Path
 
 if __package__ in (None, ""):
@@ -292,9 +294,8 @@ def _build_studio_tabs(gr, synthesis_options):
                              seed, save_name, description, consent],
                      outputs=[audio, status], api_name="studio_generate", **synthesis_options)
     with gr.Tab("角色复用"):
-        gr.Markdown("保存的是参考音频与参数，不是训练过的模型。点击刷新加载本地角色；"
-                    "后端与采样参数沿用角色卡，空指令保留已保存指令。")
-        characters = gr.Dropdown(choices=[], value=None, label="角色卡")
+        gr.Markdown("从「角色库」选择已保存角色，输入新台词即可继续创作。角色库中的删除会立即影响这里的选择。")
+        characters = gr.Dropdown(choices=[], value=None, label="角色库中的角色卡")
         refresh = gr.Button("刷新角色列表", elem_id="character_refresh")
         reference = gr.Audio(type="filepath", label="角色原始参考", interactive=False)
         metadata = gr.Markdown()
@@ -340,11 +341,27 @@ def build_ui(*, include_legacy=False):
         synthesis_options["concurrency_id"] = "timbreforge-synthesis"
 
     cfg = get_config()
-    with gr.Blocks(title="TimbreForge 声线工作室", analytics_enabled=False) as demo:
+    asset_path = (Path(__file__).resolve().parent.parent / 'assets' / 'studio-background.png').resolve()
+    asset_url = '/file=' + asset_path.as_posix()
+    css = """
+    :root { --tf-ink: #e9efff; --tf-muted: #aab9dc; --tf-panel: rgba(9, 18, 48, .78); }
+    body { background: #08132f url('__TF_ASSET_URL__') center / cover fixed no-repeat !important; }
+    .gradio-container { max-width: 1440px !important; background: rgba(5, 12, 32, .48) !important; }
+    .tf-hero { padding: 30px 34px 24px; margin: 14px 0 18px; border: 1px solid rgba(170, 198, 255, .22); border-radius: 24px; background: linear-gradient(120deg, rgba(18, 35, 83, .86), rgba(15, 25, 64, .58)); box-shadow: 0 18px 60px rgba(0, 0, 0, .24); }
+    .tf-hero h1 { color: #f4f7ff; letter-spacing: -.03em; margin-bottom: 6px; }
+    .tf-hero p { color: var(--tf-muted); margin: 0; font-size: 1.05rem; }
+    .tf-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 8px 0 18px; }
+    .tf-card { display: flex; gap: 12px; align-items: center; padding: 14px; min-height: 78px; border: 1px solid rgba(164, 193, 255, .2); border-radius: 16px; background: rgba(20, 38, 85, .7); }
+    .tf-card-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; color: #dce8ff; background: linear-gradient(135deg, #526df1, #9a72ed); font-size: 1.15rem; font-weight: 700; }
+    .tf-card h3 { color: var(--tf-ink); margin: 0 0 3px; font-size: 1rem; }
+    .tf-card p, .tf-card span, .tf-empty { color: var(--tf-muted); margin: 0; font-size: .88rem; }
+    .tf-empty { padding: 26px; border: 1px dashed rgba(164, 193, 255, .28); border-radius: 16px; text-align: center; }
+    footer { display: none !important; }
+    """.replace('__TF_ASSET_URL__', asset_url)
+    with gr.Blocks(title="TimbreForge · 角色声线工作室", analytics_enabled=False) as demo:
         gr.Markdown(
-            "# 🎙️ TimbreForge 声线工作室\n"
-            "用文字创造角色的声音：**描述声线 → 生成试听 → 挑选并保存角色 → 换台词继续创作**。\n\n"
-            "中文声线设计 · 本地生成 · 候选对比 · 可复用角色库")
+            "<div class='tf-hero'><h1>🎙️ TimbreForge</h1>"
+            "<p>把角色设定变成可以开口说话的角色。先保存角色卡，再从角色库进入生成、复用和多角色创作。</p></div>")
 
         with gr.Tabs():
             from timbreforge.role_ui import build_role_tab
@@ -353,6 +370,8 @@ def build_ui(*, include_legacy=False):
             build_simple_tab(gr, synthesis_options)
             from timbreforge.design_ui import build_design_tab
             build_design_tab(gr, synthesis_options)
+            from timbreforge.library_ui import build_library_tab
+            build_library_tab(gr)
             _build_studio_tabs(gr, synthesis_options)
             from timbreforge.creation_ui import build_creation_tabs
             build_creation_tabs(gr, synthesis_options)
@@ -458,6 +477,9 @@ def build_ui(*, include_legacy=False):
         demo.queue(default_concurrency_limit=1)
     elif "concurrency_count" in queue_parameters:
         demo.queue(concurrency_count=1)
+    # Gradio 6 moved CSS from Blocks construction to launch(). Keep it on the
+    # demo object so tests and alternate launchers can still build the UI.
+    demo._timbreforge_css = css
     return demo
 
 
@@ -474,9 +496,48 @@ def main(argv=None) -> int:
         set_config_path(args.config)
     cfg = get_config()
     demo = build_ui(include_legacy=args.legacy_retrieval)
+    # The launcher opens a local browser by default. In that mode, keep the
+    # process tied to the page: a heartbeat stops the old server after the tab
+    # is closed, so a later launch does not collide with a stale port.
+    auto_exit = bool(args.open_browser and not args.share)
+    closed = threading.Event()
+    last_heartbeat = [time.monotonic()]
+    page_js = None
+    if auto_exit:
+        page_js = """
+        (() => {
+          const ping = () => fetch('/__timbreforge_heartbeat', {method: 'POST', keepalive: true}).catch(() => {});
+          ping();
+          window.__timbreforgeHeartbeat = window.setInterval(ping, 4000);
+          window.addEventListener('beforeunload', () => {
+            if (window.__timbreforgeHeartbeat) window.clearInterval(window.__timbreforgeHeartbeat);
+            navigator.sendBeacon('/__timbreforge_close', 'closed');
+          });
+        })();
+        """
     demo.launch(server_name=args.host, server_port=args.port,
                 share=args.share, inbrowser=args.open_browser,
-                allowed_paths=[str(cfg.outputs_dir.resolve()), str(cfg.characters_dir.resolve())])
+                prevent_thread_lock=auto_exit,
+                css=getattr(demo, '_timbreforge_css', None), js=page_js,
+                allowed_paths=[str(cfg.outputs_dir.resolve()), str(cfg.characters_dir.resolve()),
+                               str((Path(__file__).resolve().parent.parent / 'assets').resolve())])
+    if auto_exit:
+        def heartbeat():
+            last_heartbeat[0] = time.monotonic()
+            return {'ok': True}
+
+        def close_page():
+            closed.set()
+            return {'ok': True}
+
+        # Gradio creates its FastAPI app during launch; routes are attached
+        # immediately after the server starts and the page retries heartbeats.
+        demo.app.add_api_route('/__timbreforge_heartbeat', heartbeat, methods=['GET', 'POST'])
+        demo.app.add_api_route('/__timbreforge_close', close_page, methods=['POST'])
+        while not closed.wait(1.0):
+            if time.monotonic() - last_heartbeat[0] > 20:
+                break
+        demo.close()
     return 0
 
 

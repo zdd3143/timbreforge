@@ -70,6 +70,8 @@ base_model = "../external/qwen3-tts/models/Base-0.6B"
 
 GPU 默认 FP16 + SDPA，不要求在 Windows 编译 FlashAttention。8GB 显存必须单模型串行运行：每个隔离 worker 完成后退出，不同时驻留 Design 和 Base。仍可能 OOM；不会自动卸载其他程序模型。CPU 明确选择 float32，速度与内存需求可能很高，不是自动静默兜底。
 
+Windows 上加载分片权重还受系统页面文件限制。若日志出现 `os error 1455`、`页面文件太小` 或 `pagefile`，请把系统页面文件上限提高到至少 32 GB 并重启电脑；这不是单纯缩短试听台词可以解决的显存错误。Windows 音频处理需要 SoX；安装 SoX-ng 后 worker 会自动发现它，即使当前终端尚未刷新 PATH 也会建立兼容入口。
+
 ## 来源与验收边界
 
 官方实现依据：[Qwen3-TTS 仓库](https://github.com/QwenLM/Qwen3-TTS)，研究源码 commit `022e286b98fbec7e1e916cb940cdf532cd9f488e`。

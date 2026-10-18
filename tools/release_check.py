@@ -14,12 +14,13 @@ from urllib.parse import unquote, urlparse
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_DIRS = {'timbreforge', 'tests', 'tools', 'docs', 'examples', 'patches', '.github'}
+SOURCE_DIRS = {'timbreforge', 'tests', 'tools', 'docs', 'examples', 'patches', '.github', 'assets'}
 ROOT_FILES = {'.gitignore', '.gitattributes', 'README.md', 'CHANGELOG.md', 'LICENSE',
               'CONTRIBUTING.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md', 'MANIFEST.in',
               'pyproject.toml', 'backend-lock.json', 'qwen-backend-lock.json',
               'planner-backend-lock.json', 'timbreforge.example.toml', '启动声线工作室.cmd'}
 MAX_BYTES = 2 * 1024 * 1024
+PUBLIC_BINARY_ASSETS = {'assets/studio-background.png'}
 PRIVATE_DIRS = {'.git', '.local-data', '.dsh', '.codex', '.agents', '.venv', 'venv', 'private', '__pycache__'}
 ASSET_SUFFIXES = {'.wav', '.flac', '.mp3', '.ogg', '.m4a', '.mp4', '.pt', '.pth', '.onnx',
                   '.safetensors', '.ckpt', '.bin', '.doc', '.docx', '.pem', '.key', '.pfx', '.p12', '.log'}
@@ -90,6 +91,10 @@ def check_source(root=ROOT):
             continue
         raw = path.read_bytes()
         total += len(raw)
+        if name in PUBLIC_BINARY_ASSETS:
+            if len(raw) > MAX_BYTES:
+                errors.append(f'{name}: exceeds 2 MiB source limit')
+            continue
         errors.extend(inspect_text(name, raw))
         if path.suffix.lower() == '.md':
             errors.extend(check_links(path, root))

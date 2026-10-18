@@ -194,7 +194,7 @@ class DesignStore:
             self._save(session)
             return session
 
-    def save_character(self, session_id, candidate_id, name, *, confirmed=False):
+    def save_character(self, session_id, candidate_id, name, *, description=None, confirmed=False):
         if confirmed is not True:
             raise ValueError('Confirm reference transcript matches rendered audio before saving identity')
         with _LOCK:
@@ -204,8 +204,12 @@ class DesignStore:
                 raise ValueError('Manually select the candidate before saving a character')
             path = self.audio_path(session_id, candidate_id)
             params = candidate['result'].get('params', session['params'])
+            if description is None:
+                description = session['prompt']
+            if not isinstance(description, str) or len(description) > 2000:
+                raise ValueError('角色描述必须是不超过 2000 字的文本')
             return CharacterStore().create(name, path, reference_text=session['text'],
-                                           description=session['prompt'], backend='qwen3', instruction='',
+                                           description=description.strip(), backend='qwen3', instruction='',
                                            params={'qwen': params}, provenance={
                                                'kind': 'qwen_voice_design', 'session_id': session_id,
                                                'candidate_id': candidate_id, 'design_prompt': session['prompt'],

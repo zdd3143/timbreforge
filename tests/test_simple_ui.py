@@ -66,15 +66,26 @@ class SimpleUITests(unittest.TestCase):
         self.assertEqual(ui.error_message(ValueError('请填写描述')), '请填写描述')
         self.assertIn('Qwen 路径', ui.error_message(FileNotFoundError('config.json')))
 
+    def test_generated_voice_can_be_saved_to_shared_library(self):
+        with patch.object(ui, 'DesignStore') as store:
+            store.return_value.save_character.return_value = {'name': '林澈'}
+            result = ui.save_simple_character('session', 'candidate', '林澈', '救援队长', True)
+        self.assertEqual(result['name'], '林澈')
+        store.return_value.select.assert_called_once_with('session', 'candidate')
+        store.return_value.save_character.assert_called_once_with(
+            'session', 'candidate', '林澈', description='救援队长', confirmed=True)
+
     @unittest.skipUnless(importlib.util.find_spec('gradio'), 'UI extra not installed')
-    def test_simple_page_has_one_input_and_failure_clears_audio(self):
+    def test_simple_page_has_save_controls_and_failure_clears_audio(self):
         import gradio as gr
         with patch.object(ui, 'automatic_recipe', side_effect=AssertionError('no IO during build')):
             with gr.Blocks(analytics_enabled=False) as demo:
                 with gr.Tabs():
                     ui.build_simple_tab(gr, {'concurrency_id':'timbreforge-synthesis','concurrency_limit':1})
         components = demo.get_config_file()['components']
-        self.assertEqual(sum(c['type'] == 'textbox' for c in components), 1)
+        self.assertEqual(sum(c['type'] == 'textbox' for c in components), 3)
+        ids = {c.get('props', {}).get('elem_id') for c in components}
+        self.assertTrue({'simple_description', 'simple_save_name', 'simple_save_description', 'simple_save'} <= ids)
         self.assertFalse(any(c['type'] in ('checkbox', 'slider', 'number') for c in components))
         fn = next(f.fn for f in demo.fns.values() if f.api_name == 'simple_generate')
         with patch.object(ui, 'generate_simple', side_effect=RuntimeError('GPU test failure')):

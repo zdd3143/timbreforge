@@ -75,6 +75,23 @@ def generate_simple(description, progress=None, *, preview_text=PREVIEW_TEXT):
     return audio, details
 
 
+def save_simple_character(session_id, candidate_id, name, description='', confirmed=False):
+    """Promote a one-click design result into the shared character library."""
+    if confirmed is not True:
+        raise ValueError('请确认已试听，并确认这段声音与试听台词一致后再保存。')
+    if not session_id or not candidate_id:
+        raise ValueError('请先生成一段角色声音。')
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError('请填写角色名称。')
+    if not isinstance(description, str) or len(description) > 2000:
+        raise ValueError('角色描述必须是不超过 2000 字的文本。')
+    store = DesignStore()
+    # The selected candidate is the exact audio shown in the simple UI.
+    store.select(session_id, candidate_id)
+    return store.save_character(session_id, candidate_id, name.strip(),
+                                description=description.strip() or None, confirmed=True)
+
+
 def error_message(exc):
     if isinstance(exc, FileNotFoundError):
         return f'本地模型或环境文件缺失：{exc}。请检查 timbreforge.local.toml 中的 Qwen 路径。'
@@ -92,18 +109,39 @@ def build_simple_tab(gr, synthesis_options=None):
         generate = gr.Button('生成角色声音', variant='primary', elem_id='simple_generate')
         status = gr.Markdown('生成后可以直接试听和下载；再次点击可尝试另一版声音。', elem_id='simple_status')
         audio = gr.Audio(type='filepath', interactive=False, label='角色声线试听', elem_id='simple_audio')
+        with gr.Group(visible=False) as save_panel:
+            gr.Markdown('### 保存到角色库\n保存后可在「角色库」「角色复用」和多角色项目中使用。')
+            with gr.Row():
+                save_name = gr.Textbox(label='角色名称', elem_id='simple_save_name')
+                save_description = gr.Textbox(label='角色描述（可选）', elem_id='simple_save_description')
+            save_confirm = gr.Checkbox(label='我已试听，并确认声音与试听台词一致，可以保存到角色库。',
+                                       elem_id='simple_save_confirm')
+            save = gr.Button('保存到角色库', variant='secondary', elem_id='simple_save')
         with gr.Accordion('自动配置与试听台词', open=False):
             gr.Markdown('采样参数采用模型自带配置，设备和随机种子自动选择。试听台词：' + PREVIEW_TEXT)
             details = gr.JSON(label='本次生成记录', elem_id='simple_details')
-        gr.Markdown('喜欢这段声音？在「文字声线设计 / Qwen VoiceDesign」中刷新并加载会话，即可保存为角色。')
+        gr.Markdown('生成满意后，可以直接保存到角色库；其他页面会从角色库读取这张角色卡。')
 
     def run(description, progress=gr.Progress()):
-        yield None, '正在自动配置并生成，请稍候…', None
+        yield None, None, gr.update(visible=False), gr.update(value=''), gr.update(value=''), gr.update(value=False), '正在自动配置并生成，请稍候…'
         try:
             audio_path, metadata = generate_simple(description, progress)
-            yield audio_path, '生成完成。点击播放试听，或下载音频；再次生成会保留之前的结果。', metadata
+            yield audio_path, metadata, gr.update(visible=True), gr.update(value=''), gr.update(value=metadata.get('description', '')), gr.update(value=False), '生成完成。请先试听，再保存到角色库。'
         except (OSError, ValueError, RuntimeError, TypeError, KeyError, OverflowError) as exc:
-            yield None, error_message(exc), None
+            yield None, None, gr.update(visible=False), gr.update(value=''), gr.update(value=''), gr.update(value=False), error_message(exc)
 
-    generate.click(run, description, [audio, status, details], api_name='simple_generate',
+    generate.click(run, description, [audio, details, save_panel, save_name, save_description, save_confirm, status], api_name='simple_generate',
                    **dict(synthesis_options or {}))
+
+    def save_run(metadata, name, note, confirmed):
+        try:
+            card = save_simple_character(metadata.get('session_id') if metadata else None,
+                                         metadata.get('candidate_id') if metadata else None,
+                                         name, note, confirmed)
+            return '已保存到角色库：**%s**。打开「角色库」即可试听和管理。' % card['name'], gr.update(visible=False), gr.update(value=False)
+        except (OSError, ValueError, RuntimeError, TypeError, KeyError) as exc:
+            return error_message(exc), gr.update(visible=True), gr.update(value=False)
+
+    save.click(save_run, [details, save_name, save_description, save_confirm],
+               [status, save_panel, save_confirm], api_name='simple_save_character',
+               **dict(synthesis_options or {}))

@@ -73,9 +73,20 @@ def append_design(session_id, values, count=1, device='cuda:0', confirmed=False,
                                       device=device, confirmed=True)
 
 
-def session_choices(root=None):
-    return [(f"{session['prompt'][:45]} · {session['id']}", session['id'])
-            for session in design_store(root).list()]
+def session_choices(root=None, *, library_only=False):
+    """Return design records; the UI can limit these to saved character cards."""
+    sessions = design_store(root).list()
+    labels = {}
+    if library_only:
+        from timbreforge.characters import CharacterStore
+        for card in CharacterStore(root).list():
+            session_id = (card.get('provenance') or {}).get('session_id')
+            if session_id:
+                labels.setdefault(session_id, []).append(card['name'])
+        sessions = [session for session in sessions if session['id'] in labels]
+    return [(((' / '.join(labels.get(session['id'], [])) + ' · 设计记录 · ')
+              if library_only else f"{session['prompt'][:45]} · ") + session['id'], session['id'])
+            for session in sessions]
 
 
 def load_session(session_id, root=None):
@@ -204,11 +215,11 @@ def build_design_tab(gr, synthesis_options=None):
             with gr.Column(scale=1, min_width=360):
                 gr.Markdown('### 02 / 试听与挑选')
                 with gr.Row():
-                    sessions = gr.Dropdown(choices=[],label='已保存的设计会话',elem_id='design_sessions')
-                    refresh = gr.Button('刷新会话列表',elem_id='design_refresh')
+                    sessions = gr.Dropdown(choices=[],label='角色库内的设计记录',elem_id='design_sessions')
+                    refresh = gr.Button('刷新角色库记录',elem_id='design_refresh')
                     load = gr.Button('加载会话',elem_id='design_load')
                 append = gr.Button('追加候选 · 保留原描述和台词',interactive=False,elem_id='design_append')
-                status = gr.Markdown('生成后在这里试听；也可以刷新并加载之前的设计。', elem_id='design_status')
+                status = gr.Markdown('生成后先试听并明确选用候选，再保存到角色库。这里不显示未入库的旧草稿。', elem_id='design_status')
                 with gr.Row():
                     a = gr.Dropdown(choices=[],label='候选 A（选择/收藏/备注对象）',elem_id='design_a')
                     b = gr.Dropdown(choices=[],label='候选 B',elem_id='design_b')
@@ -227,7 +238,7 @@ def build_design_tab(gr, synthesis_options=None):
                 select = gr.Button('明确选用 A 并保存收藏/备注',elem_id='design_select')
                 with gr.Accordion('候选生成记录', open=False):
                     metadata = gr.JSON(label='候选后端记录与人工选择（不自动排名）',elem_id='design_metadata')
-                gr.Markdown('### 03 / 保存角色\n为喜欢的声音命名，下次可以让同一个角色说新的台词。')
+                gr.Markdown('### 03 / 保存到角色库\n为喜欢的声音命名；保存成功后它才会进入统一角色库，供角色复用和多角色项目使用。')
                 gr.Markdown('保存的是选定设计的原始参考音频与已知台词，不是把提示词当声音身份。后续角色复用使用 Qwen Base 0.6B 参考克隆；'
                             '不重复设计提示词。参考必须 ≤30 秒，超长会报错，不会静默裁切。')
                 save_confirm = gr.Checkbox(value=False, label='我已试听核对：选定音频与试听台词逐字对应，并确认可作为合成角色参考。', elem_id='design_save_confirm')
@@ -258,7 +269,7 @@ def build_design_tab(gr, synthesis_options=None):
     assemble.click(safe(assemble_prompt),[prompt,gender,age,timbre,pitch,accent,performance],prompt)
     generate.click(safe(create_view),[prompt,text,count,device,consent]+controls,outputs,api_name='design_generate',**synthesis_options)
     append.click(safe(append_view),[sessions,count,device,consent]+controls,outputs,api_name='design_append',**synthesis_options)
-    refresh.click(safe(lambda current: gr.update(choices=(choices:=session_choices()),value=pick(choices,current))),sessions,sessions)
+    refresh.click(safe(lambda current: gr.update(choices=(choices:=session_choices(library_only=True)),value=pick(choices,current))),sessions,sessions)
     def load_recipe(sid):
         session = load_session(sid)
         selected = next((c for c in session['candidates'] if c['id'] == session.get('selected_candidate_id')),

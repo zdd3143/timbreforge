@@ -9,12 +9,44 @@ import os
 from pathlib import Path
 import random
 import re
+import shutil
 import sys
+import tempfile
 import time
 import traceback
 
 GENERATION_KEYS = frozenset({'do_sample','temperature','top_p','top_k','repetition_penalty',
     'max_new_tokens','subtalker_dosample','subtalker_temperature','subtalker_top_p','subtalker_top_k'})
+
+
+def _ensure_sox_windows():
+    """Use SoX-ng when the legacy ``sox.exe`` is unavailable or incompatible."""
+    if os.name != 'nt' or shutil.which('sox'):
+        return
+    candidate = shutil.which('sox_ng')
+    if not candidate:
+        roots_list = []
+        for base in (os.environ.get('LOCALAPPDATA', ''),
+                     str(Path(os.environ.get('USERPROFILE', '')) / 'AppData' / 'Local')):
+            if base:
+                roots_list.append(Path(base) / 'Microsoft' / 'WinGet' / 'Packages')
+        matches = []
+        for roots in roots_list:
+            if roots.is_dir():
+                matches = list(roots.glob('sox_ng.sox_ng_*/sox_ng.exe'))
+                if not matches:
+                    matches = list(roots.glob('sox_ng.sox_ng_*/*/sox_ng.exe'))
+                if matches:
+                    break
+        candidate = str(matches[0]) if matches else None
+    if not candidate:
+        return
+    shim_dir = Path(tempfile.gettempdir()) / 'timbreforge-sox-shim'
+    shim_dir.mkdir(parents=True, exist_ok=True)
+    shim = shim_dir / 'sox.exe'
+    if not shim.is_file():
+        shutil.copy2(candidate, shim)
+    os.environ['PATH'] = str(shim_dir) + os.pathsep + os.environ.get('PATH', '')
 
 
 def clone_segments(text, limit=100):
@@ -38,6 +70,7 @@ def clone_segments(text, limit=100):
 
 def run(request):
     os.environ.update(HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1', HF_HUB_DISABLE_TELEMETRY='1')
+    _ensure_sox_windows()
     import numpy as np
     import soundfile as sf
     import torch
@@ -95,10 +128,26 @@ def run(request):
             kwargs['device'] = 'cpu'
             return original_safe_open(filename, *args, **kwargs)
         modeling_utils.safe_open = staged_safe_open
+    model_kwargs = dict(device_map=device, dtype=getattr(torch,dtype),
+                        attn_implementation=attention, local_files_only=True,
+                        low_cpu_mem_usage=True)
     try:
-        model = Qwen3TTSModel.from_pretrained(str(model_dir), device_map=device,
-            dtype=getattr(torch,dtype), attn_implementation=attention, local_files_only=True,
-            low_cpu_mem_usage=True)
+        try:
+            model = Qwen3TTSModel.from_pretrained(str(model_dir), **model_kwargs)
+        except OSError as exc:
+            # Windows error 1455 means the temporary CPU staging map exceeds
+            # the page-file commit limit. A direct CUDA load uses less system
+            # commit and is safe to try after the staged attempt is released.
+            message = str(exc).lower()
+            if not (cpu_staging and ('1455' in message or 'pagefile' in message or '页面文件' in message)):
+                raise
+            print('Qwen: CPU staging exceeded the Windows page-file limit; retrying direct CUDA load.', flush=True)
+            import gc
+            gc.collect()
+            if cuda:
+                torch.cuda.empty_cache()
+            modeling_utils.safe_open = original_safe_open
+            model = Qwen3TTSModel.from_pretrained(str(model_dir), **model_kwargs)
     finally:
         if cpu_staging:
             modeling_utils.safe_open = original_safe_open

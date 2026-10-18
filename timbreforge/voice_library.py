@@ -218,6 +218,32 @@ class VoiceLibrary:
             data['characters'].pop(index)
         self._write(data)
 
+    def remove_card_references(self, card_id):
+        """Remove every library voice that points at a deleted character card."""
+        _identifier(card_id, '声线卡 ID')
+        data = self._read()
+        changed = False
+        groups = []
+        for entry in data['characters']:
+            if not isinstance(entry, dict):
+                groups.append(entry)
+                continue
+            voices = entry.get('voices')
+            if not isinstance(voices, list):
+                groups.append(entry)
+                continue
+            remaining = [voice for voice in voices
+                         if not isinstance(voice, dict) or voice.get('character_id') != card_id]
+            if len(remaining) != len(voices):
+                changed = True
+                entry = dict(entry, voices=remaining)
+            if not remaining and voices:
+                continue
+            groups.append(entry)
+        if changed:
+            data['characters'] = groups
+            self._write(data)
+
 
 def library_view(root=None):
     """Library contents for the UI, with cards that no longer load marked."""

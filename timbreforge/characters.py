@@ -287,6 +287,23 @@ class CharacterStore:
                 continue
         return records
 
+    def delete(self, character_id: str) -> dict:
+        """Delete one verified character card and its private reference audio."""
+        card = self.load(character_id)
+        directory = (self.root / character_id).resolve()
+        if directory.parent != self.root.resolve():
+            raise ValueError("character directory escapes the store root")
+        shutil.rmtree(directory)
+        # Keep the optional multi-voice index free of dangling references.
+        try:
+            from timbreforge.voice_library import VoiceLibrary
+            VoiceLibrary(self.root).remove_card_references(character_id)
+        except (OSError, ValueError, TypeError):
+            # The card has already been removed; a damaged optional index must
+            # not turn a successful card deletion into a reported failure.
+            pass
+        return card
+
     def _remove_owned_temp(self, path: Path) -> None:
         """Remove only the temporary directory created directly under this root."""
         try:

@@ -179,7 +179,7 @@ def build_creation_tabs(gr, synthesis_options=None):
                 scores.get('speaker_similarity'), scores.get('content_accuracy'), scores.get('quality'))
 
     with gr.Tab('多角色项目 / 候选比较'):
-        gr.Markdown('逐行生成，重生成只追加候选；使用稳定 ID 保存选择。评分分别展示声线、内容与质量，不生成综合分。')
+        gr.Markdown('先在「角色库」创建角色卡，再为每个说话人绑定角色。逐行生成只追加当前台词的候选。')
         state = gr.State(None)
         with gr.Row():
             name = gr.Textbox(label='项目名称', value='雨后重逢', elem_id='create_name')
@@ -191,7 +191,7 @@ def build_creation_tabs(gr, synthesis_options=None):
             load = gr.Button('加载项目', elem_id='create_load')
         with gr.Row():
             speaker = gr.Dropdown(label='说话人', choices=[], elem_id='create_speaker')
-            character = gr.Dropdown(label='角色卡', choices=[], elem_id='create_character')
+            character = gr.Dropdown(label='从角色库选择角色卡', choices=[], elem_id='create_character')
             refresh_char = gr.Button('刷新角色卡', elem_id='create_refresh_char')
             bind = gr.Button('绑定角色', elem_id='create_bind')
         bindings = gr.Textbox(label='已保存的说话人绑定', interactive=False, elem_id='create_bindings')
