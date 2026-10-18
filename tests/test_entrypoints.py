@@ -54,7 +54,8 @@ class EntrypointTests(unittest.TestCase):
                  patch.object(webui, "get_bank", side_effect=AssertionError("no dataset")):
                 self.assertEqual(webui.main(["--config", str(path)]), 0)
             self.assertEqual(launches[0]["allowed_paths"],
-                             [str((root / "renders").resolve()), str((root / "cards").resolve())])
+                             [str((root / "renders").resolve()), str((root / "cards").resolve()),
+                              str((Path(webui.__file__).resolve().parent.parent / "assets").resolve())])
             self.assertNotIn(str(root), launches[0]["allowed_paths"])
 
     def test_voicegen_config_controls_base_and_default_output_without_bank(self):
