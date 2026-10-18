@@ -145,3 +145,4 @@ def build_simple_tab(gr, synthesis_options=None):
     save.click(save_run, [details, save_name, save_description, save_confirm],
                [status, save_panel, save_confirm], api_name='simple_save_character',
                **dict(synthesis_options or {}))
+

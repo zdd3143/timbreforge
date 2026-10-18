@@ -19,7 +19,7 @@ python -m unittest discover -s tests -p "test_*.py" -v
 ```powershell
 python -m pip install build
 python -m build
-python tools/release_check.py --archive dist/timbreforge-0.5.0a1-py3-none-any.whl --archive dist/timbreforge-0.5.0a1.tar.gz
+python tools/release_check.py --archive dist/timbreforge-0.6.0a1-py3-none-any.whl --archive dist/timbreforge-0.6.0a1.tar.gz
 ```
 
 核对所有包内 worker、三个后端清单及示例配置。wheel 只包含 Python 包和元数据；源码包另外包含文档、测试、启动脚本与维护工具。
@@ -38,3 +38,4 @@ python tools/release_check.py --archive dist/timbreforge-0.5.0a1-py3-none-any.wh
 ## 首次上传前的本机结果
 
 Windows / Python 3.12：196 项测试，195 项通过、1 项可选外部检查跳过；源码扫描与后端补丁指纹检查通过。使用已安装的 setuptools 84 构建 wheel 和源码包，检查全部归档内容及五个 worker。wheel 在项目隔离验证环境中离线安装，再于源码目录之外验证版本、入口和模型栈延迟导入；该环境借用本机已有 CPU 依赖，不作为全新机器安装或远端 CI 的替代。
+

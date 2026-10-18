@@ -300,3 +300,4 @@ def build_creation_tabs(gr, synthesis_options=None):
         return result['output_path'], result['output_path'], result
     prepare.click(safe(prepare_view), [ref, confirmed, start, end, mono, transcript, text_confirmed, backend, instruction],
                   [processed, processed_file, processed_report])
+

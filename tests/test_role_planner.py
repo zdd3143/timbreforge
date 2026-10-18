@@ -141,7 +141,7 @@ class RolePlanTests(unittest.TestCase):
             python.touch()
             cfg = SimpleNamespace(planner_python=python, planner_model=model, outputs_dir=root/'outputs')
             def worker(command, **kwargs):
-                request = json.loads(Path(command[command.index('--request')+1]).read_text())
+                request = json.loads(Path(command[command.index('--request')+1]).read_text(encoding='utf-8'))
                 self.assertEqual(request['profile'], '角色设定')
                 self.assertEqual(kwargs['env']['HF_HUB_OFFLINE'], '1')
                 result = dict(plan=sample_plan(), model_dir=str(model), profile_sha256=request['profile_sha256'])
@@ -169,7 +169,7 @@ class RolePlanTests(unittest.TestCase):
                  patch('timbreforge.simple_ui.generate_simple',return_value=('audio.wav',{'session_id':'s'})) as gen:
                 rp.generate_from_plan(record,'source','edited voice','edited line')
             gen.assert_called_once_with('edited voice',None,preview_text='edited line')
-            stored=json.loads(next(folder.glob('generation-*.json')).read_text())
+            stored=json.loads(next(folder.glob('generation-*.json')).read_text(encoding='utf-8'))
             self.assertEqual(stored['edited_voice_prompt'],'edited voice')
             self.assertEqual(stored['edited_preview_text'],'edited line')
 
@@ -439,3 +439,4 @@ class RolePlanTests(unittest.TestCase):
 
 
 if __name__ == '__main__': unittest.main()
+

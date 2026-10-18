@@ -18,7 +18,8 @@ SOURCE_DIRS = {'timbreforge', 'tests', 'tools', 'docs', 'examples', 'patches', '
 ROOT_FILES = {'.gitignore', '.gitattributes', 'README.md', 'CHANGELOG.md', 'LICENSE',
               'CONTRIBUTING.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md', 'MANIFEST.in',
               'pyproject.toml', 'backend-lock.json', 'qwen-backend-lock.json',
-              'planner-backend-lock.json', 'timbreforge.example.toml', '启动声线工作室.cmd'}
+              'planner-backend-lock.json', 'timbreforge.example.toml', '启动声线工作室.cmd',
+              'DEEPSEEK_TASKS.md'}
 MAX_BYTES = 2 * 1024 * 1024
 PUBLIC_BINARY_ASSETS = {'assets/studio-background.png'}
 PRIVATE_DIRS = {'.git', '.local-data', '.dsh', '.codex', '.agents', '.venv', 'venv', 'private', '__pycache__'}
@@ -156,3 +157,4 @@ def main(argv=None):
 
 if __name__ == '__main__':
     raise SystemExit(main())
+

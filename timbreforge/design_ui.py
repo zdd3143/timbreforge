@@ -293,3 +293,4 @@ def build_design_tab(gr, synthesis_options=None):
     compare.click(safe(compare_view),[sessions,a,b,matching],[audio_a,audio_b,compare_report])
     for button,own,other in ((play_a,'a','b'),(play_b,'b','a')):
         button.click(fn=None,js=f"() => {{ document.querySelectorAll('#design_audio_{other} audio').forEach(a => a.pause()); const own=Array.from(document.querySelectorAll('#design_audio_{own} audio')).findLast(a => a.src); if(own) {{ own.currentTime=0; own.play().catch(()=>{{}}); }} }}")
+

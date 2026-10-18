@@ -2,9 +2,27 @@
 
 ## 最新基线与发布检查
 
-2026-10-16 上传前回归为 **196 项：195 项通过、1 项可选检查跳过**，包括发布资产、凭据、文档链接和归档内容检查。历史章节保留当时的结果，不作为当前总数。
+2026-10-18 在 0.6.0a1 工作区本地全量回归为 **425 项：424 项通过、1 项可选检查跳过**（Windows、Python 3.12.10、NumPy 2.5.3、SoundFile 0.14.0、Gradio 6.30.0；运行 `python -m unittest discover -s tests -p "test_*.py"`，建议同时设置 `$env:PYTHONUTF8='1'` 以稳定中文断言）。跳过项为未设置环境变量的外部 AST 检查类；Gradio 构建可能输出非致命 asyncio event-loop ResourceWarning。
+
+本轮新增覆盖：
+
+| 模块 | 覆盖 |
+| --- | --- |
+| `tests/test_audio_editing.py` | 处理链校验、四个预设、去静音、响度目标、降噪、去点击、EQ、压缩、原子写入、源文件不变、预览编码 |
+| `tests/test_character_audio_package.py` | 角色音频修整、恢复原始、历史不覆盖、复制/导出/重新导入、哈希与路径安全 |
+| `tests/test_clone_prompts.py` | 创建/复用/强制重建、逐字稿/音频/模式/模型变化失效、损坏与非法路径、回退原因 |
+| `tests/test_generation.py` | 统一生成入口溯源、seed、Clone Prompt 回退、失败不发布、列表/删除、统一适配器路径 |
+| `tests/test_jobs.py` | 任务状态机、持久化、取消、串行与优先级、失败清理、内存释序 |
+| `tests/test_voice_candidates.py` | 单维候选、A/B 副本、选中前置、保存新版本、Clone Prompt 重建失败回退 |
+| `tests/test_longform.py` | 切分完整性、漏句/重复、加速/音量/音色/点击检测、淡化拼接、失败不发布 |
+| `tests/test_voice_eval.py` | 固定八类测试集、CER/WER、信号指标、音色漂移、最差候选、报告原子写入 |
+| `tests/test_backends.py` / `tests/test_vc_backend.py` | 适配器注册/能力/可用性、Qwen 请求映射、VC 外部协议、哈希变化与非法输出拒绝、取消 |
+| `tests/test_training.py` | 授权确认、质量筛选、确定性切分、篡改检测、参数与显存估算、无训练器提示、检查点发布与保留、评估、登记与回滚 |
+| `tests/test_extended_ui.py` | 新页面构建不加载模型、关键控件存在、纯函数与处理器接线 |
 
 发布前执行 `python tools/release_check.py`，核对源码候选中的私有资产、常见凭据和相对文档链接；构建后用同一工具的 `--archive` 检查 wheel 和源码包。操作见[发布指南](RELEASING.md)。
+
+**未验证**：本轮没有在真实 GPU 上重跑音频修整后的克隆、声线微调候选、长文本拼接、VC 或训练；这些路径由合成采样、mock 后端、假 worker/脚本和临时目录测试覆盖。真实模型的听感、显存峰值与跨平台行为仍需按 [本机验收记录](LOCAL_ACCEPTANCE_2026-10-16.md) 的方式单独验收。Windows Gradio 仍输出非致命 event-loop ResourceWarning；不代表页面失败。
 
 模型调用已接入跨进程资源锁和本机闲置缓存释放；后文关于操作者手动释放的历史描述不代表当前行为。完整策略及真实克隆显存验证见[内存管理](MEMORY_MANAGEMENT.md)。远端 CI 仅在取得实际运行结果后报告通过。
 
@@ -101,3 +119,4 @@ TIMBREFORGE_INDEXTTS_NODE_DIR=/your/ComfyUI/custom_nodes/ComfyUI-Index-TTS-25 py
 ### 本轮私有真实验收（不属于仓库资产）
 
 在仓库外、Windows RTX 4060 Laptop 上使用本地合成参考完成了：CosyVoice3 clone → 保存角色卡 → 结束并重新启动 Studio → 角色列表加载 → 新台词生成。两次真实推理均返回 FLOAT WAV，无页面错误；浏览器流程也验证了上传控件、生成按钮和角色复用按钮。参考音频、生成 WAV、MP4 录屏、截图、日志和本机路径均留在私有验收目录，未复制进仓库或发布。该结果只证明这套已配置本机环境的基本链路，不代表 IndexTTS live schema 已重载、跨平台可复现、音质评级或公开授权。
+

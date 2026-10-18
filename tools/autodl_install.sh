@@ -25,11 +25,11 @@ if python -c 'import torch' >/dev/null 2>&1; then
   # Keep the image's CUDA torch. Installing qwen-tts with dependencies would
   # otherwise resolve a second, often incompatible torch/torchaudio stack.
   python -m pip install --no-deps 'qwen-tts==0.1.1'
-  python -m pip install 'transformers==4.57.3' 'accelerate==1.12.0' librosa onnxruntime einops sox safetensors 'jinja2>=3.1.5'
+  python -m pip install 'transformers==4.57.3' 'accelerate==1.12.0' 'peft>=0.14,<1' librosa onnxruntime einops sox safetensors 'jinja2>=3.1.5'
   TORCH_VERSION="$(python -c 'import torch; print(torch.__version__.split("+")[0])')"
   python -m pip install --no-deps "torchaudio==${TORCH_VERSION}"
 else
-  python -m pip install 'qwen-tts==0.1.1' 'transformers==4.57.3' accelerate safetensors
+  python -m pip install 'qwen-tts==0.1.1' 'transformers==4.57.3' accelerate 'peft>=0.14,<1' safetensors
 fi
 
 # config.py resolves Python paths; a venv's python is usually a symlink back
@@ -85,3 +85,4 @@ echo
 echo "配置已写入 $ROOT_DIR/timbreforge.autodl.toml"
 echo "启动：python -m timbreforge.webui --config timbreforge.autodl.toml --host 0.0.0.0 --port 6006"
 echo "模型下载需显式执行：bash tools/autodl_install.sh --download-models"
+

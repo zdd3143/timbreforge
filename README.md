@@ -4,7 +4,7 @@
 
 Chinese-first local voice studio: turn character profiles into editable voice prompts, generate previews, and reuse saved reference voices with new dialogue.
 
-**当前版本：0.5.0a1 · Alpha**。语言模型与语音模型需另行配置；本仓库仅包含源码、文档、测试和版本清单。
+**当前版本：0.6.0a1 · Alpha**。语言模型与语音模型需另行配置；本仓库仅包含源码、文档、测试和版本清单。
 
 ## 功能
 
@@ -12,18 +12,26 @@ Chinese-first local voice studio: turn character profiles into editable voice pr
 | --- | --- |
 | 角色设定 → 声线推演 | 粘贴设定，或导入 Word `.docx`、TXT、Markdown、JSON；本地语言模型给出声音特征、依据、待确认项、完整提示词和试听台词。 |
 | 一句话生成 | 只输入声音描述，自动选择设备、模型采样配置和随机种子；试听后可直接保存到角色库。 |
-| 试听、重生成与声线库 | 修改提示词、换种子、切换最近 3 条试听记录；保存到新角色或给已有角色追加声线。 |
-| 参考克隆与角色复用 | 默认使用 Qwen Base 0.6B，以固定参考音频和准确转录生成新台词。 |
+| 角色库与角色卡 | 统一保存原始音频、标准音频、逐字稿、结构化 VoiceRecipe、模型版本、随机种子、来源、处理历史与 Clone Prompt 状态；支持复制、导出和重新导入。 |
+| 参考音频修整 | 去首尾静音、基础降噪、去点击声、EQ、压缩与响度标准化；四个预设，原始音频永不覆盖，每次处理都有参数与输入/输出哈希。 |
+| Clone Prompt 缓存 | 复用 Qwen 条件张量；音频、逐字稿、模型版本、克隆模式或处理链变化时自动失效并回退到普通克隆。 |
+| 声线微调与 A/B | 每次只改变一个表达维度生成 4–8 个候选，A/B 试听，选中后保存为角色新版本并重建 Clone Prompt。 |
+| 文字生成与长文本 | 从角色库选择角色生成台词；长文本按段落/句子切分、逐段生成、检查漏句与异常后淡化拼接。 |
+| 自动评估 | 固定八类测试文本，记录 CER/WER、说话人相似度、时长、语速、静音、峰值/LUFS、削波、音色漂移与人工评分，同时给出平均值与最差候选。 |
+| 模型管理 | 登记本机已有模型目录与版本，切换、检查与回滚；新模型通过统一适配器接入，不自动下载。 |
 | 进阶设计与多角色创作 | 手动采样参数、候选 A/B、收藏备注、脚本逐句生成、人工选择后导出分轨与混合轨。 |
-| 资源管理 | 重模型串行执行，释放闲置 ComfyUI/IndexTTS 缓存；长台词克隆分段生成，Qwen 内存错误清理后重试一次。 |
+| 资源管理 | 重型任务统一排队、串行执行；失败或取消时释放子进程、临时文件与空闲模型；按页面缓存、历史预览、空闲模型顺序释放内存。 |
+| 高级训练（离线） | 数据集切分与质量筛选、外部 LoRA/Adapter 训练任务、检查点原子发布、评估、模型登记与回滚；不作为普通生成流程的一部分。 |
 
 ```mermaid
 flowchart LR
     A[导入角色设定] --> B[本地模型推演]
-    B --> C[查看并编辑声音提示词]
+    B --> C[查看并编辑声线配方]
     C --> D[生成试听与挑选]
     D --> E[保存角色声线]
-    E --> F[换台词复用声音]
+    E --> F[音频修整]
+    F --> G[声线微调候选]
+    G --> H[长文本与角色复用]
 ```
 
 ## 快速开始
@@ -66,7 +74,7 @@ python -m timbreforge.launcher
 
 也可以在已安装依赖的环境中双击 `启动声线工作室.cmd`。默认打开 [本地工作室](http://127.0.0.1:7860)。端口被占用时可使用 `--port 7862`；`--no-browser` 只启动服务。
 
-首次使用可从「简化版 · 一句话生成」开始；已有角色资料时，使用「角色设定 → 声线推演」。满意的试听保存后会进入统一「角色库」，角色复用和多角色项目都从角色库选择角色卡，也可以在角色库试听或删除卡片。推演与成功生成的试听会保存到本机，重新打开后可刷新记录并恢复。[完整上手指南](docs/QUICKSTART.md)
+首次使用可从「简化版 · 一句话生成」开始；已有角色资料时，使用「角色设定 → 声线推演」。满意的试听保存后会进入统一「角色库」，之后在「创建角色 / 音频修整 / 声线微调 / 文字生成 / 长文本生成」中始终从角色库选择角色卡。角色卡可试听、复制、导出和重新导入；高级训练与模型切换在「模型管理 / 高级训练」页，不参与普通生成流程。[完整上手指南](docs/QUICKSTART.md)
 
 ## 克隆与内存
 
@@ -79,6 +87,8 @@ python -m timbreforge.launcher
 ## 数据与使用边界
 
 - 按示例配置，输出保存在 `.local-data/outputs/`，角色与声线库保存在 `.local-data/characters/`。备份时应同时保留音频和元数据。
+- 角色目录结构：`character.json`、原始 `reference.wav`、`audio/`（当前标准音频与压缩预览）、`prompts/`（可重建的 Clone Prompt）。删除角色会清理整个目录。
+- 生成记录在 `outputs/generation/`，调音会话在 `outputs/tuning/`，任务记录在 `outputs/jobs/`，模型注册表在 `models/registry.json`。
 - `.gitignore` 排除本机配置、录音、模型、缓存和生成结果；仓库和安装包不分发这些资产。
 - 声线推演是创作建议。声音贴合度、文字准确性和身份一致性需要试听确认；保存角色不是训练或微调模型。
 - 使用参考声音前应确认使用权和说话者授权，不用于冒充、欺诈或侵权。界面面向本机可信用户，不提供公网多用户鉴权。[声音权利与安全](docs/SAFETY.md)
@@ -102,9 +112,12 @@ python tools/backend_audit.py
 ## 文档与反馈
 
 - [配置说明](docs/CONFIGURATION.md) · [使用指南](docs/USAGE.md) · [多角色创作](docs/CREATION.md)
+- [角色库与角色卡](docs/CHARACTER_LIBRARY.md) · [音频修整](docs/AUDIO_EDITING.md) · [Clone Prompt 缓存](docs/CLONE_PROMPTS.md) · [社区适配器](docs/COMMUNITY_ADAPTERS.md)
+- [VoiceRecipe 配方](docs/VOICE_RECIPE.md) · [微调、长文本与评估](docs/TUNING_AND_EVALUATION.md)
+- [模型管理与 Voice Conversion](docs/MODELS_AND_VC.md) · [离线训练](docs/TRAINING.md)
 - [角色推演与导入](docs/ROLE_PLANNER.md) · [声音设计](docs/VOICE_DESIGN.md) · [参考音频助手](docs/REFERENCE_ASSISTANT.md)
 - [公开角色示例](examples/public-role-profile.md) · [AutoDL 部署](docs/AUTODL.md)
-- [测试说明](docs/TESTING.md) · [发布检查](docs/RELEASING.md) · [更新记录](CHANGELOG.md)
+- [测试说明](docs/TESTING.md) · [发布检查](docs/RELEASING.md) · [更新记录](CHANGELOG.md) · [0.6.0a1 实施报告](docs/IMPLEMENTATION_REPORT_2026-10-18.md)
 - [贡献指南](CONTRIBUTING.md) · [安全报告](SECURITY.md)
 
 缺陷报告请附复现步骤、版本、系统和脱敏错误信息；不要上传私人录音、密钥或本机配置。
@@ -112,3 +125,4 @@ python tools/backend_audit.py
 ## 许可
 
 原创项目代码采用 [Apache-2.0](LICENSE)。模型、第三方库、数据、录音及声音权利分别适用各自条款，见 [第三方说明](THIRD_PARTY_NOTICES.md)。
+

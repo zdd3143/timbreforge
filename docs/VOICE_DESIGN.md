@@ -57,7 +57,7 @@ base_model = "../external/qwen3-tts/models/Base-0.6B"
 
 对应环境变量为 `TIMBREFORGE_QWEN_PYTHON`、`TIMBREFORGE_QWEN_DESIGN_MODEL`、`TIMBREFORGE_QWEN_BASE_MODEL`。相对 TOML 路径相对配置文件位置解析。
 
-适配基线为 `qwen-tts==0.1.1`，官方依赖 `transformers==4.57.3`、`accelerate==1.12.0`；torch 与 CUDA 安装必须单独验证匹配，不把源码声明等同于已安装可运行环境。
+适配基线为 `qwen-tts==0.1.1`，官方依赖 `transformers==4.57.3`、`accelerate==1.12.0`；使用社区 Qwen3-TTS LoRA 时还需要在同一个 Qwen Python 环境安装 `peft>=0.14,<1`。torch 与 CUDA 安装必须单独验证匹配，不把源码声明等同于已安装可运行环境。
 
 完整固定本地模型快照需要 main safetensors、文字 tokenizer/vocab/merges、generation/preprocessor 配置，以及附带 `speech_tokenizer`。不要仅下载主权重，也不要仅依赖 `revision=`，因为部分官方内部加载调用不完整转发 revision。
 
@@ -81,3 +81,4 @@ Windows 上加载分片权重还受系统页面文件限制。若日志出现 `o
 - [实际核心生成参数](https://github.com/QwenLM/Qwen3-TTS/blob/022e286b98fbec7e1e916cb940cdf532cd9f488e/qwen_tts/core/models/modeling_qwen3_tts.py)
 
 CPU 单测使用临时音频和模拟后端，只证明请求、参数、存储、错误传播及 UI 连线，不证明声线设计音质。是否完成本机真实模型推理、耗时、显存与可懂度检查应以本轮实际验收记录为准；本文不预先宣称通过。
+

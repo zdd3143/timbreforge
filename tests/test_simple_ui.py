@@ -86,15 +86,21 @@ class SimpleUITests(unittest.TestCase):
         self.assertEqual(sum(c['type'] == 'textbox' for c in components), 3)
         ids = {c.get('props', {}).get('elem_id') for c in components}
         self.assertTrue({'simple_description', 'simple_save_name', 'simple_save_description', 'simple_save'} <= ids)
-        self.assertFalse(any(c['type'] in ('checkbox', 'slider', 'number') for c in components))
+        # One-click mode stays free of sampling controls; the only checkbox is the
+        # explicit "I auditioned this take" consent that gates saving a character.
+        self.assertFalse(any(c['type'] in ('slider', 'number') for c in components))
+        checkboxes = [c for c in components if c['type'] == 'checkbox']
+        self.assertEqual([c['props'].get('elem_id') for c in checkboxes], ['simple_save_confirm'])
         fn = next(f.fn for f in demo.fns.values() if f.api_name == 'simple_generate')
         with patch.object(ui, 'generate_simple', side_effect=RuntimeError('GPU test failure')):
             outputs = list(fn('test', None))
         self.assertIsNone(outputs[0][0])
         self.assertIsNone(outputs[-1][0])
-        self.assertIn('GPU test failure', outputs[-1][1])
+        # Status is the final component in the save-flow output order.
+        self.assertIn('GPU test failure', outputs[-1][-1])
         demo.close()
 
 
 if __name__ == '__main__':
     unittest.main()
+

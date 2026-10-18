@@ -216,3 +216,4 @@ class DesignStore:
                                                'design_result': candidate['result'],
                                                'reference_transcript_user_confirmed': True,
                                                'identity_strategy': 'fixed designed reference + transcript, Base clone; not prompt regeneration'})
+

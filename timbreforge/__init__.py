@@ -48,7 +48,7 @@ from .perception import (  # noqa: F401
     profile_voice_text,
 )
 
-__version__ = "0.5.0a1"
+__version__ = "0.6.0a1"
 __all__ = [
     "Patch", "build_patch", "render", "render_patch", "render_voice_patch",
     "render_preview", "render_voice", "extract", "extract_voice",
@@ -93,3 +93,4 @@ try:
                 "VOICE_LEXICON"]
 except Exception:  # pragma: no cover - 数据集未就绪时不影响其它能力
     pass
+

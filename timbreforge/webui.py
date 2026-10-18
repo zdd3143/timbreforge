@@ -372,9 +372,19 @@ def build_ui(*, include_legacy=False):
             build_design_tab(gr, synthesis_options)
             from timbreforge.library_ui import build_library_tab
             build_library_tab(gr)
+            from timbreforge.character_ui import build_character_tabs
+            build_character_tabs(gr)
+            from timbreforge.voice_ui import build_voice_tabs
+            build_voice_tabs(gr)
             _build_studio_tabs(gr, synthesis_options)
             from timbreforge.creation_ui import build_creation_tabs
             build_creation_tabs(gr, synthesis_options)
+            from timbreforge.admin_ui import build_admin_tabs
+            build_admin_tabs(gr)
+            from timbreforge.ui_tasks import register_default_cleanups
+            # Low-priority caches may be released under memory pressure; this
+            # only registers callbacks and never touches a model or the disk now.
+            register_default_cleanups()
             if include_legacy:
                 with gr.Tab("数据集检索（原有功能）"):
                     with gr.Row():
@@ -515,31 +525,41 @@ def main(argv=None) -> int:
           });
         })();
         """
-    demo.launch(server_name=args.host, server_port=args.port,
-                share=args.share, inbrowser=args.open_browser,
-                prevent_thread_lock=auto_exit,
-                css=getattr(demo, '_timbreforge_css', None), js=page_js,
-                allowed_paths=[str(cfg.outputs_dir.resolve()), str(cfg.characters_dir.resolve()),
-                               str((Path(__file__).resolve().parent.parent / 'assets').resolve())])
-    if auto_exit:
-        def heartbeat():
-            last_heartbeat[0] = time.monotonic()
-            return {'ok': True}
+    try:
+        demo.launch(server_name=args.host, server_port=args.port,
+                    share=args.share, inbrowser=args.open_browser,
+                    prevent_thread_lock=auto_exit,
+                    css=getattr(demo, '_timbreforge_css', None), js=page_js,
+                    allowed_paths=[str(cfg.outputs_dir.resolve()), str(cfg.characters_dir.resolve()),
+                                   str((Path(__file__).resolve().parent.parent / 'assets').resolve())])
+        if auto_exit:
+            def heartbeat():
+                last_heartbeat[0] = time.monotonic()
+                return {'ok': True}
 
-        def close_page():
-            closed.set()
-            return {'ok': True}
+            def close_page():
+                closed.set()
+                return {'ok': True}
 
-        # Gradio creates its FastAPI app during launch; routes are attached
-        # immediately after the server starts and the page retries heartbeats.
-        demo.app.add_api_route('/__timbreforge_heartbeat', heartbeat, methods=['GET', 'POST'])
-        demo.app.add_api_route('/__timbreforge_close', close_page, methods=['POST'])
-        while not closed.wait(1.0):
-            if time.monotonic() - last_heartbeat[0] > 20:
-                break
-        demo.close()
+            # Gradio creates its FastAPI app during launch; routes are attached
+            # immediately after the server starts and the page retries heartbeats.
+            demo.app.add_api_route('/__timbreforge_heartbeat', heartbeat, methods=['GET', 'POST'])
+            demo.app.add_api_route('/__timbreforge_close', close_page, methods=['POST'])
+            while not closed.wait(1.0):
+                if time.monotonic() - last_heartbeat[0] > 20:
+                    break
+    finally:
+        # Closing the browser or stopping the process must not leave design
+        # sessions, playback copies, jobs, Qwen staging files or generated
+        # takes behind.  CharacterStore is a separate durable root.
+        try:
+            demo.close()
+        finally:
+            from timbreforge.ui_tasks import shutdown_runtime
+            shutdown_runtime(clear_records=True)
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

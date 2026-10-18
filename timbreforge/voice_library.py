@@ -264,3 +264,4 @@ def library_view(root=None):
             voices.append(dict(voice, card=card))
         result.append(dict(group, voices=voices))
     return dict(ok=True, error='', characters=result)
+

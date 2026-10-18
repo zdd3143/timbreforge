@@ -33,6 +33,7 @@ class AdapterTests(unittest.TestCase):
         sf.write(r['output'],np.full(2400,.2),24000,subtype='FLOAT')
         result={k:r[k] for k in ('mode','params','model_dir','device','dtype','attention','model_config_sha256')}
         result.update(file=r['output'],seed=r['params']['seed'],sample_rate=24000,duration=.1,
+                      clone_mode=r.get('clone_mode','none'),clone_prompt_sha256=None,
                       qwen_package_version='0.1.1',reference_sha256=r['reference_sha256'],load_seconds=.1,inference_seconds=.2)
         Path(command[command.index('--result')+1]).write_text(json.dumps(result),encoding='utf-8')
         return types.SimpleNamespace(returncode=0)
@@ -111,6 +112,68 @@ class AdapterTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'invalid audio'):q.design('text','voice',q.QwenParams())
         self.assertEqual(run.call_count,1)
 
+    def test_clone_prompt_creation_and_cached_clone_request(self):
+        def prompt_worker(command, **kwargs):
+            request = json.loads(Path(command[command.index('--request')+1]).read_text(encoding='utf-8'))
+            Path(request['output']).write_bytes(b'prompt-tensors')
+            digest = hashlib.sha256(b'prompt-tensors').hexdigest()
+            result = dict(file=request['output'], mode='clone_prompt',
+                          model_dir=request['model_dir'], device=request['device'],
+                          dtype=request['dtype'], attention=request['attention'],
+                          model_config_sha256=request['model_config_sha256'],
+                          qwen_package_version='0.1.1',
+                          reference_sha256=request['reference_sha256'],
+                          clone_mode=request['clone_mode'], prompt_sha256=digest,
+                          tensor_info={'ref_code': {'shape': [3, 2]},
+                                       'ref_spk_embedding': {'shape': [8]}},
+                          load_seconds=.1, inference_seconds=.2)
+            Path(command[command.index('--result')+1]).write_text(json.dumps(result))
+            return types.SimpleNamespace(returncode=0)
+        with patch.object(q.subprocess,'run',side_effect=prompt_worker):
+            created = q.create_clone_prompt(self.ref, '参考台词', clone_mode='icl')
+        self.assertTrue(Path(created['prompt_file']).is_file())
+        self.assertEqual(created['clone_mode'], 'icl')
+        self.assertEqual(created['prompt_sha256'],
+                         hashlib.sha256(b'prompt-tensors').hexdigest())
+        self.assertEqual(created['tensor_info']['ref_code']['shape'], [3, 2])
+
+        reference_hash = hashlib.sha256(self.ref.read_bytes()).hexdigest()
+        def clone_worker(command, **kwargs):
+            request = json.loads(Path(command[command.index('--request')+1]).read_text(encoding='utf-8'))
+            self.request = request
+            sf.write(request['output'], np.full(2400,.2), 24000, subtype='FLOAT')
+            result = {k: request[k] for k in ('mode','params','model_dir','device','dtype',
+                                              'attention','model_config_sha256')}
+            result.update(file=request['output'], seed=request['params']['seed'],
+                          sample_rate=24000, duration=.1, clone_mode='icl',
+                          clone_prompt_sha256=request['clone_prompt_sha256'],
+                          reference_sha256=request['reference_sha256'],
+                          qwen_package_version='0.1.1', load_seconds=.1, inference_seconds=.2)
+            Path(command[command.index('--result')+1]).write_text(json.dumps(result))
+            return types.SimpleNamespace(returncode=0)
+        with patch.object(q.subprocess,'run',side_effect=clone_worker):
+            output = q.clone(None, '参考台词', '新台词', q.QwenParams(),
+                             clone_prompt=created['prompt_file'], clone_mode='icl',
+                             reference_sha256=reference_hash)
+        self.assertIsNone(self.request['ref_audio'])
+        self.assertEqual(self.request['clone_prompt'], created['prompt_file'])
+        self.assertEqual(self.request['clone_prompt_sha256'], created['prompt_sha256'])
+        self.assertEqual(output['clone_prompt_sha256'], created['prompt_sha256'])
+
+    def test_clone_prompt_rejects_invalid_requests_before_subprocess(self):
+        with patch.object(q.subprocess,'run') as run:
+            with self.assertRaises(ValueError):
+                q.create_clone_prompt(self.ref, '参考台词', clone_mode='magic')
+            with self.assertRaises(FileNotFoundError):
+                q.clone(None, '参考台词', '台词', q.QwenParams(),
+                        clone_prompt=self.root/'missing.pt', clone_mode='icl',
+                        reference_sha256='a'*64)
+            with self.assertRaises(ValueError):
+                q.clone(self.ref, '参考台词', '台词', q.QwenParams(),
+                        clone_prompt=self.root/'prompt.pt', clone_mode='icl',
+                        reference_sha256='a'*64)
+        run.assert_not_called()
+
     def test_params_reject_bool_nan_and_unknown_language(self):
         for kwargs in ({'seed':True},{'seed':-1},{'temperature':float('nan')},{'top_p':0},{'top_k':1.5},
                        {'do_sample':1},{'subtalker_dosample':'yes'},{'max_new_tokens':8193},{'language':'invented'}):
@@ -176,3 +239,4 @@ class WorkerTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
