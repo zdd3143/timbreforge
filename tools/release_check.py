@@ -57,6 +57,19 @@ def inspect_text(name, raw):
     return errors
 
 
+def archive_source_name(name):
+    """Map wheel/sdist members back to source-relative paths.
+
+    Source distributions wrap files under a top-level ``package-version``
+    directory, while the public binary allowlist is intentionally source
+    relative (for example ``assets/studio-background-v2.png``).
+    """
+    parts = Path(name).as_posix().split('/')
+    if len(parts) > 1 and parts[0].startswith('timbreforge-'):
+        return '/'.join(parts[1:])
+    return '/'.join(parts)
+
+
 def check_links(path, root=ROOT):
     errors = []
     for match in LINK.finditer(path.read_text(encoding='utf-8-sig')):
@@ -114,6 +127,8 @@ def check_archive(path):
                     errors.append(f'{info.filename}: private asset in archive')
                 if info.file_size > MAX_BYTES:
                     errors.append(f'{info.filename}: oversized archive member')
+                elif archive_source_name(info.filename) in PUBLIC_BINARY_ASSETS:
+                    continue
                 else:
                     errors.extend(inspect_text(info.filename, archive.read(info)))
     else:
@@ -126,6 +141,8 @@ def check_archive(path):
                     errors.append(f'{member.name}: unsafe/private archive member')
                 elif member.size > MAX_BYTES:
                     errors.append(f'{member.name}: oversized archive member')
+                elif archive_source_name(member.name) in PUBLIC_BINARY_ASSETS:
+                    continue
                 else:
                     errors.extend(inspect_text(member.name, archive.extractfile(member).read()))
     required = [f'timbreforge/workers/{name}.py' for name in
