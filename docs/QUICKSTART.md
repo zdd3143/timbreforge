@@ -4,6 +4,8 @@
 
 在已配置好的 Windows 本机，双击仓库根目录的 `启动声线工作室.cmd`。保持启动窗口运行，浏览器会打开 `http://127.0.0.1:7860`。关闭启动窗口即可停止服务。
 
+第一次使用可以双击 `安装并启动声线工作室.cmd`。它会自动创建隔离环境并安装界面依赖；模型路径配置和整合包说明见 [Windows 小白整合包](WINDOWS_BUNDLE.md)。
+
 也可以在项目目录运行 `python -m timbreforge.launcher`。如果端口已占用，使用 `python -m timbreforge.launcher --port 7862`。
 
 新机器需要先安装 `python -m pip install ".[ui]"`，将 `timbreforge.example.toml` 复制为 `timbreforge.local.toml`，填写本地 Qwen Python、VoiceDesign 和 Base 模型路径。具体模型准备见 [VOICE_DESIGN.md](VOICE_DESIGN.md)。模型不包含在软件发行包里。

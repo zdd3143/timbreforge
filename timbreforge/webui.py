@@ -341,27 +341,92 @@ def build_ui(*, include_legacy=False):
         synthesis_options["concurrency_id"] = "timbreforge-synthesis"
 
     cfg = get_config()
-    asset_path = (Path(__file__).resolve().parent.parent / 'assets' / 'studio-background.png').resolve()
+    assets_root = Path(__file__).resolve().parent.parent / 'assets'
+    asset_path = (assets_root / 'studio-background-v2.png')
+    if not asset_path.is_file():
+        asset_path = assets_root / 'studio-background.png'
+    asset_path = asset_path.resolve()
     asset_url = '/file=' + asset_path.as_posix()
     css = """
-    :root { --tf-ink: #e9efff; --tf-muted: #aab9dc; --tf-panel: rgba(9, 18, 48, .78); }
-    body { background: #08132f url('__TF_ASSET_URL__') center / cover fixed no-repeat !important; }
-    .gradio-container { max-width: 1440px !important; background: rgba(5, 12, 32, .48) !important; }
-    .tf-hero { padding: 30px 34px 24px; margin: 14px 0 18px; border: 1px solid rgba(170, 198, 255, .22); border-radius: 24px; background: linear-gradient(120deg, rgba(18, 35, 83, .86), rgba(15, 25, 64, .58)); box-shadow: 0 18px 60px rgba(0, 0, 0, .24); }
-    .tf-hero h1 { color: #f4f7ff; letter-spacing: -.03em; margin-bottom: 6px; }
-    .tf-hero p { color: var(--tf-muted); margin: 0; font-size: 1.05rem; }
-    .tf-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 8px 0 18px; }
-    .tf-card { display: flex; gap: 12px; align-items: center; padding: 14px; min-height: 78px; border: 1px solid rgba(164, 193, 255, .2); border-radius: 16px; background: rgba(20, 38, 85, .7); }
-    .tf-card-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; color: #dce8ff; background: linear-gradient(135deg, #526df1, #9a72ed); font-size: 1.15rem; font-weight: 700; }
-    .tf-card h3 { color: var(--tf-ink); margin: 0 0 3px; font-size: 1rem; }
-    .tf-card p, .tf-card span, .tf-empty { color: var(--tf-muted); margin: 0; font-size: .88rem; }
-    .tf-empty { padding: 26px; border: 1px dashed rgba(164, 193, 255, .28); border-radius: 16px; text-align: center; }
+    :root {
+      --tf-ink: #f8f7ff;
+      --tf-text: #e8e8f5;
+      --tf-muted: #a7abc6;
+      --tf-faint: #777d9e;
+      --tf-border: rgba(214, 205, 255, .16);
+      --tf-border-strong: rgba(230, 216, 255, .30);
+      --tf-panel: rgba(18, 19, 48, .74);
+      --tf-panel-solid: #171732;
+      --tf-accent: #c7a7ff;
+      --tf-accent-2: #ffb37d;
+      --tf-shadow: 0 24px 70px rgba(1, 2, 18, .34);
+    }
+    * { box-sizing: border-box; }
+    body {
+      background: #080a20 url('__TF_ASSET_URL__') center / cover fixed no-repeat !important;
+      color: var(--tf-text) !important;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: -1;
+      background: linear-gradient(180deg, rgba(5, 6, 22, .10), rgba(6, 7, 23, .74) 82%, rgba(6, 7, 23, .92));
+    }
+    .gradio-container {
+      max-width: 1480px !important; padding: 22px 28px 72px !important;
+      background: transparent !important; font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif !important;
+    }
+    .tf-hero {
+      position: relative; overflow: hidden; display: flex; justify-content: space-between; gap: 30px;
+      padding: 34px 40px 30px; margin: 0 0 14px; min-height: 220px;
+      border: 1px solid var(--tf-border-strong); border-radius: 30px;
+      background: linear-gradient(120deg, rgba(18, 17, 49, .92), rgba(42, 26, 71, .62));
+      box-shadow: var(--tf-shadow); backdrop-filter: blur(18px);
+    }
+    .tf-hero::after { content: ''; position: absolute; width: 340px; height: 340px; right: -120px; top: -170px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 183, 125, .24), transparent 68%); pointer-events: none; }
+    .tf-hero-copy { position: relative; z-index: 1; max-width: 820px; }
+    .tf-eyebrow { color: var(--tf-accent-2); font-size: .74rem; letter-spacing: .22em; font-weight: 700; text-transform: uppercase; }
+    .tf-hero h1 { color: var(--tf-ink); font-size: clamp(2rem, 4vw, 3.65rem); line-height: 1.08; letter-spacing: -.055em; margin: 14px 0 12px; }
+    .tf-hero p { color: #c4c3dc; max-width: 720px; margin: 0; font-size: 1.03rem; line-height: 1.75; }
+    .tf-flow { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 24px; }
+    .tf-flow span { padding: 8px 12px; border: 1px solid rgba(215, 194, 255, .20); border-radius: 999px; color: #ded7f1; background: rgba(255, 255, 255, .06); font-size: .82rem; }
+    .tf-hero-mark { display: grid; place-items: center; width: 126px; height: 126px; margin: 12px 14px 0 0; border: 1px solid rgba(255, 205, 163, .44); border-radius: 38px; color: #ffe4c7; background: linear-gradient(145deg, rgba(255, 180, 121, .30), rgba(151, 107, 208, .18)); box-shadow: 0 0 60px rgba(255, 165, 100, .16); font-size: 3.3rem; transform: rotate(5deg); }
+    .tf-onboarding { display: flex; align-items: center; gap: 12px; padding: 12px 18px; margin: 0 0 18px; border: 1px solid rgba(201, 174, 255, .15); border-radius: 14px; color: var(--tf-muted); background: rgba(15, 14, 38, .58); font-size: .91rem; }
+    .tf-onboarding strong { color: #f7d6b4; }
+    .tab-nav { position: sticky; top: 10px; z-index: 20; gap: 7px !important; padding: 7px !important; margin-bottom: 18px !important; border: 1px solid var(--tf-border) !important; border-radius: 17px !important; background: rgba(12, 12, 34, .82) !important; box-shadow: 0 12px 30px rgba(4, 3, 18, .23); backdrop-filter: blur(16px); }
+    .tab-nav button { border: 0 !important; border-radius: 11px !important; color: var(--tf-muted) !important; font-weight: 600 !important; transition: .2s ease !important; }
+    .tab-nav button:hover { color: var(--tf-ink) !important; background: rgba(202, 172, 255, .10) !important; }
+    .tab-nav button.selected { color: #fff5eb !important; background: linear-gradient(135deg, rgba(172, 124, 232, .84), rgba(226, 145, 112, .74)) !important; box-shadow: 0 7px 18px rgba(186, 122, 202, .22); }
+    .tabitem { animation: tf-fade .24s ease-out; }
+    @keyframes tf-fade { from { opacity: .35; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .block, .form, .gr-box, .gr-panel, .gr-group, .gr-accordion { border-color: var(--tf-border) !important; background: var(--tf-panel) !important; box-shadow: 0 12px 40px rgba(4, 3, 18, .12); }
+    .gr-accordion { border-radius: 14px !important; overflow: hidden; }
+    label, .label-wrap span, .block-label { color: #d7d5e8 !important; }
+    textarea, input, select, .gr-dropdown, .gr-textbox, .gr-number { border-color: rgba(217, 208, 255, .17) !important; background: rgba(12, 12, 34, .68) !important; color: var(--tf-ink) !important; border-radius: 11px !important; }
+    textarea:focus, input:focus { border-color: rgba(205, 168, 255, .66) !important; box-shadow: 0 0 0 3px rgba(191, 143, 255, .12) !important; }
+    button { border: 1px solid rgba(224, 209, 255, .16) !important; border-radius: 11px !important; color: #eeeafa !important; background: rgba(75, 67, 108, .72) !important; transition: transform .18s ease, box-shadow .18s ease, background .18s ease !important; }
+    button:hover { transform: translateY(-1px); background: rgba(108, 87, 144, .86) !important; box-shadow: 0 8px 22px rgba(14, 8, 34, .24); }
+    button.primary { border-color: rgba(255, 195, 150, .38) !important; background: linear-gradient(135deg, #a56bd0, #e48a6e) !important; color: white !important; box-shadow: 0 10px 25px rgba(194, 114, 155, .24); }
+    button.stop { background: rgba(160, 68, 88, .58) !important; }
+    .tf-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 8px 0 18px; }
+    .tf-card { display: flex; gap: 13px; align-items: center; padding: 16px; min-height: 88px; border: 1px solid var(--tf-border); border-radius: 18px; background: linear-gradient(135deg, rgba(38, 29, 65, .82), rgba(16, 16, 42, .72)); box-shadow: 0 14px 34px rgba(4, 2, 17, .16); transition: transform .2s ease, border-color .2s ease; }
+    .tf-card:hover { transform: translateY(-2px); border-color: rgba(235, 191, 255, .36); }
+    .tf-card-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; color: #fff0dd; background: linear-gradient(135deg, #9566ce, #df9278); font-size: 1.15rem; font-weight: 700; }
+    .tf-card h3 { color: var(--tf-ink); margin: 0 0 4px; font-size: 1rem; }
+    .tf-card p, .tf-card span, .tf-empty { color: var(--tf-muted); margin: 0; font-size: .88rem; line-height: 1.5; }
+    .tf-empty { padding: 30px; border: 1px dashed rgba(224, 192, 255, .28); border-radius: 18px; text-align: center; background: rgba(17, 14, 38, .55); }
+    .audio-container, .audio { border-color: var(--tf-border) !important; background: rgba(11, 11, 31, .70) !important; border-radius: 14px !important; }
+    .progress-bar { background: linear-gradient(90deg, #b184e5, #ffb077) !important; }
     footer { display: none !important; }
+    @media (max-width: 760px) { .gradio-container { padding: 12px 12px 44px !important; } .tf-hero { padding: 26px 22px; min-height: auto; } .tf-hero-mark { display: none; } .tab-nav { overflow-x: auto; justify-content: flex-start !important; } .tf-onboarding { align-items: flex-start; flex-direction: column; } }
     """.replace('__TF_ASSET_URL__', asset_url)
     with gr.Blocks(title="TimbreForge · 角色声线工作室", analytics_enabled=False) as demo:
         gr.Markdown(
-            "<div class='tf-hero'><h1>🎙️ TimbreForge</h1>"
-            "<p>把角色设定变成可以开口说话的角色。先保存角色卡，再从角色库进入生成、复用和多角色创作。</p></div>")
+            "<div class='tf-hero'><div class='tf-hero-copy'>"
+            "<div class='tf-eyebrow'>LOCAL CHARACTER VOICE STUDIO</div>"
+            "<h1>让角色拥有自己的声音</h1>"
+            "<p>从一句描述或一份角色设定开始，生成试听、保存角色卡，再从角色库继续创作。所有声音与素材都留在本机。</p>"
+            "<div class='tf-flow'><span>① 描述角色</span><span>② 试听声线</span><span>③ 保存到角色库</span><span>④ 生成台词</span></div>"
+            "</div><div class='tf-hero-mark'>◌</div></div>"
+            "<div class='tf-onboarding'><strong>新手建议</strong><span>第一次使用从「简化版 · 一句话生成」开始；已有角色资料则进入「角色设定 → 声线推演」。</span></div>")
 
         with gr.Tabs():
             from timbreforge.role_ui import build_role_tab

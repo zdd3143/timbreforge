@@ -19,9 +19,9 @@ ROOT_FILES = {'.gitignore', '.gitattributes', 'README.md', 'CHANGELOG.md', 'LICE
               'CONTRIBUTING.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md', 'MANIFEST.in',
               'pyproject.toml', 'backend-lock.json', 'qwen-backend-lock.json',
               'planner-backend-lock.json', 'timbreforge.example.toml', '启动声线工作室.cmd',
-              'DEEPSEEK_TASKS.md'}
+              '安装并启动声线工作室.cmd', 'DEEPSEEK_TASKS.md'}
 MAX_BYTES = 2 * 1024 * 1024
-PUBLIC_BINARY_ASSETS = {'assets/studio-background.png'}
+PUBLIC_BINARY_ASSETS = {'assets/studio-background.png', 'assets/studio-background-v2.png'}
 PRIVATE_DIRS = {'.git', '.local-data', '.dsh', '.codex', '.agents', '.venv', 'venv', 'private', '__pycache__'}
 ASSET_SUFFIXES = {'.wav', '.flac', '.mp3', '.ogg', '.m4a', '.mp4', '.pt', '.pth', '.onnx',
                   '.safetensors', '.ckpt', '.bin', '.doc', '.docx', '.pem', '.key', '.pfx', '.p12', '.log'}
@@ -132,7 +132,8 @@ def check_archive(path):
                 ('qwen_worker', 'planner_worker', 'cosyvoice_worker', 'mos_infer', 'campplus_sim')]
     if path.suffix != '.whl':
         required += ['README.md', 'CHANGELOG.md', 'backend-lock.json', 'qwen-backend-lock.json',
-                     'planner-backend-lock.json', 'timbreforge.example.toml', '启动声线工作室.cmd']
+                     'planner-backend-lock.json', 'timbreforge.example.toml', '启动声线工作室.cmd',
+                     '安装并启动声线工作室.cmd']
     for name in required:
         if not any(entry == name or entry.endswith('/' + name) for entry in names):
             errors.append(f'{path.name}: missing {name}')

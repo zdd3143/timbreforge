@@ -38,6 +38,8 @@ flowchart LR
 
 ### 1. 安装工作室
 
+Windows 用户可以直接双击 `安装并启动声线工作室.cmd`。它会自动创建 `.venv`、安装界面依赖、生成本机配置并打开工作室；模型权重仍需按本机显卡和许可证单独准备。开发者可使用 `tools/build_windows_bundle.ps1` 生成可分发 ZIP。
+
 需要 **Python 3.11 或 3.12**。以下以 Windows PowerShell 为例：
 
 ```powershell
