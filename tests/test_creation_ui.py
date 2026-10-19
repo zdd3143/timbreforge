@@ -115,6 +115,7 @@ class CreationCallbackTests(unittest.TestCase):
         self.assertTrue(components['create_ref']['props']['editable'])
         self.assertIn('create_compose_files', components)
         self.assertIn('create_compose', components)
+        self.assertIn('create_use_composed', components)
         self.assertIn('create_play_a', components)
         self.assertIn('create_play_b', components)
 

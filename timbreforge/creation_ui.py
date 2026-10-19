@@ -275,6 +275,7 @@ def build_creation_tabs(gr, synthesis_options=None):
         composed = gr.Audio(label='组合结果', type='filepath', interactive=False, elem_id='create_composed')
         composed_file = gr.File(label='下载组合音频', interactive=False, elem_id='create_composed_file')
         composed_report = gr.JSON(label='组合处理报告', elem_id='create_composed_report')
+        use_composed = gr.Button('将组合结果设为上方参考音频', elem_id='create_use_composed')
 
     # Browser-local audition only: no file processing and never overlap A/B.
     play_a.click(fn=None, js="() => { const b = document.querySelector('#create_audio_b audio'); if (b) b.pause(); const a = document.querySelector('#create_audio_a audio'); if (a) { a.currentTime = 0; a.play().catch(() => {}); } }")
@@ -324,4 +325,5 @@ def build_creation_tabs(gr, synthesis_options=None):
         return result['path'], result['path'], result
     compose_button.click(safe(compose_view), [compose_files, compose_gap, compose_fade],
                          [composed, composed_file, composed_report])
+    use_composed.click(lambda path: path, composed, ref)
 
