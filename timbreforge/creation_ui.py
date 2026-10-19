@@ -134,6 +134,12 @@ def prepare_reference(path, confirmed=False, start_seconds=0, end_seconds=None, 
                                        transcript=transcript, transcript_confirmed=transcript_confirmed)
 
 
+def compose_reference(audio_paths, gap_ms=80, crossfade_ms=25):
+    """Create a new reference file by joining selected local audio files."""
+    from timbreforge.audio_composer import compose_audio
+    return compose_audio(audio_paths, gap_ms=gap_ms, crossfade_ms=crossfade_ms)
+
+
 def build_creation_tabs(gr, synthesis_options=None):
     """Add tabs without reading stores; share the host's synthesis queue."""
     synthesis_options = synthesis_options or {}
@@ -240,8 +246,11 @@ def build_creation_tabs(gr, synthesis_options=None):
         export_report = gr.JSON(label='导出明细', elem_id='create_export_report')
 
     with gr.Tab('参考音频助手'):
-        gr.Markdown('仅本地检查，不自动上传任何服务。不自动裁切、不覆盖原始文件。处理结果需要您主动下载或另行选作参考。')
-        ref = gr.Audio(label='原始参考音频', type='filepath', sources=['upload'], format=None, editable=False, elem_id='create_ref')
+        gr.Markdown('仅本地处理，不自动上传任何服务。上传后可直接在**音频波形图**拖动左右边界裁剪；确认后才会另存新文件，原始文件永不覆盖。')
+        ref = gr.Audio(label='原始参考音频（拖动波形两侧边界进行裁剪）', type='filepath', sources=['upload'], format=None,
+                       editable=True,
+                       waveform_options={'waveform_color': '#a98bea', 'waveform_progress_color': '#ffad7d',
+                                         'trim_region_color': '#f2a56f'}, elem_id='create_ref')
         transcript = gr.Textbox(label='与参考片段对应的转录（不自动识别）', elem_id='create_transcript')
         with gr.Row():
             backend = gr.Dropdown(choices=['indextts', 'cosyvoice3', 'qwen3'], value='qwen3', label='计划使用的后端', elem_id='create_backend')
@@ -249,15 +258,23 @@ def build_creation_tabs(gr, synthesis_options=None):
         inspect = gr.Button('检查原始音频 / 后端消费说明', elem_id='create_inspect')
         report = gr.JSON(label='检查报告（阈值、警告与未核验项）', elem_id='create_report')
         with gr.Row():
-            start = gr.Number(value=0, label='裁切开始（秒）', elem_id='create_start')
-            end = gr.Number(value=None, label='裁切结束（留空到结尾）', elem_id='create_end')
-            mono = gr.Checkbox(label='转为单声道', value=False, elem_id='create_mono')
+            mono = gr.Checkbox(label='另存时转为单声道', value=False, elem_id='create_mono')
         confirmed = gr.Checkbox(label='我明确确认上述裁切/转换操作，另存新文件', value=False, elem_id='create_confirmed')
         text_confirmed = gr.Checkbox(label='我已核对转录与处理后的片段一致', value=False, elem_id='create_text_confirmed')
-        prepare = gr.Button('按确认的设置另存参考副本', elem_id='create_prepare')
+        prepare = gr.Button('按波形选区另存参考副本', variant='primary', elem_id='create_prepare')
         processed = gr.Audio(label='处理后参考（不会自动用于合成）', type='filepath', interactive=False, elem_id='create_processed')
         processed_file = gr.File(label='下载副本后自行选择使用', interactive=False, elem_id='create_processed_file')
         processed_report = gr.JSON(label='处理清单与转录确认状态', elem_id='create_processed_report')
+
+        gr.Markdown('### 组合音频\n选择多个本地音频按顺序串联。每个输入都保持原始文件不变；采样率和声道数需要一致。')
+        compose_files = gr.Files(label='待串联音频（按列表顺序）', file_count='multiple', type='filepath', elem_id='create_compose_files')
+        with gr.Row():
+            compose_gap = gr.Slider(0, 2000, value=80, step=10, label='片段间静音（毫秒）', elem_id='create_compose_gap')
+            compose_fade = gr.Slider(0, 200, value=25, step=5, label='边界淡入淡出（毫秒）', elem_id='create_compose_fade')
+        compose_button = gr.Button('串联并生成新的参考音频', elem_id='create_compose')
+        composed = gr.Audio(label='组合结果', type='filepath', interactive=False, elem_id='create_composed')
+        composed_file = gr.File(label='下载组合音频', interactive=False, elem_id='create_composed_file')
+        composed_report = gr.JSON(label='组合处理报告', elem_id='create_composed_report')
 
     # Browser-local audition only: no file processing and never overlap A/B.
     play_a.click(fn=None, js="() => { const b = document.querySelector('#create_audio_b audio'); if (b) b.pause(); const a = document.querySelector('#create_audio_a audio'); if (a) { a.currentTime = 0; a.play().catch(() => {}); } }")
@@ -292,12 +309,19 @@ def build_creation_tabs(gr, synthesis_options=None):
         return files, result
     export.click(safe(export_view), [project, gap], [export_files, export_report])
     inspect.click(safe(inspect_reference), [ref, transcript, backend, instruction], report)
-    def prepare_view(path, ok, begin, finish, to_mono, text, text_ok, chosen_backend, chosen_instruction):
-        result = prepare_reference(path, ok, begin, finish, to_mono, text, text_ok)
+    def prepare_view(path, ok, to_mono, text, text_ok, chosen_backend, chosen_instruction):
+        # Gradio's editable Audio component uploads the selected waveform range
+        # as the filepath received here, so the backend only needs to copy it.
+        result = prepare_reference(path, ok, 0, None, to_mono, text, text_ok)
         result['selected_backend_inspection'] = inspect_reference(
             result['output_path'], result.get('transcript', ''), chosen_backend, chosen_instruction)
         result['preparation_report_note'] = '默认处理检查与所选后端检查分别保留；请以 selected_backend_inspection 查看所选后端消费说明。'
         return result['output_path'], result['output_path'], result
-    prepare.click(safe(prepare_view), [ref, confirmed, start, end, mono, transcript, text_confirmed, backend, instruction],
+    prepare.click(safe(prepare_view), [ref, confirmed, mono, transcript, text_confirmed, backend, instruction],
                   [processed, processed_file, processed_report])
+    def compose_view(files, gap_ms, fade_ms):
+        result = compose_reference(files, gap_ms, fade_ms)
+        return result['path'], result['path'], result
+    compose_button.click(safe(compose_view), [compose_files, compose_gap, compose_fade],
+                         [composed, composed_file, composed_report])
 

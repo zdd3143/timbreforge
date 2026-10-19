@@ -293,35 +293,42 @@ def _build_studio_tabs(gr, synthesis_options):
                      inputs=[task, backend, reference, transcript, instruction, text,
                              seed, save_name, description, consent],
                      outputs=[audio, status], api_name="studio_generate", **synthesis_options)
-    with gr.Tab("角色复用"):
-        gr.Markdown("从「角色库」选择已保存角色，输入新台词即可继续创作。角色库中的删除会立即影响这里的选择。")
-        characters = gr.Dropdown(choices=[], value=None, label="角色库中的角色卡")
-        refresh = gr.Button("刷新角色列表", elem_id="character_refresh")
-        reference = gr.Audio(type="filepath", label="角色原始参考", interactive=False)
-        metadata = gr.Markdown()
-        text = gr.Textbox(label="角色的新台词", value=DEFAULT_TEXT, lines=3)
-        instruction = gr.Textbox(label="覆盖表演指令（留空保留已保存指令）", lines=2)
-        seed = gr.Number(value=None, precision=0, label="覆盖种子（留空保留角色种子）")
-        device = gr.Dropdown(choices=[('GPU / CUDA', 'cuda:0'), ('CPU（较慢）', 'cpu')],
-                             value='cuda:0', label='仅 Qwen 角色设备（GPU BF16 / CPU FP32；其他后端忽略；不自动回退）',
-                             elem_id='character_device')
-        consent = gr.Checkbox(value=False, label=CONSENT_LABEL)
-        button = gr.Button("用角色生成", variant="primary", elem_id="character_generate")
-        audio = gr.Audio(type="filepath", label="角色合成音频")
-        status = gr.Markdown()
+        # Role reuse is the same reference-clone workflow with a saved source.
+        # Keep it in this tab so newcomers do not have to choose between two
+        # pages that perform the same operation.
+        with gr.Accordion("从角色库复用已保存角色", open=True):
+            gr.Markdown("### 角色复用\n选择角色库中的角色卡，输入新台词即可继续创作。删除角色卡后这里会在刷新时同步。")
+            characters = gr.Dropdown(choices=[], value=None, label="角色库中的角色卡")
+            refresh = gr.Button("刷新角色列表", elem_id="character_refresh")
+            character_reference = gr.Audio(type="filepath", label="角色原始参考", interactive=False,
+                                            elem_id="character_reference")
+            metadata = gr.Markdown(elem_id="character_metadata")
+            character_text = gr.Textbox(label="角色的新台词", value=DEFAULT_TEXT, lines=3)
+            character_instruction = gr.Textbox(label="覆盖表演指令（留空保留已保存指令）", lines=2)
+            character_seed = gr.Number(value=None, precision=0, label="覆盖种子（留空保留角色种子）")
+            device = gr.Dropdown(choices=[('GPU / CUDA', 'cuda:0'), ('CPU（较慢）', 'cpu')],
+                                 value='cuda:0', label='仅 Qwen 角色设备（GPU BF16 / CPU FP32；其他后端忽略；不自动回退）',
+                                 elem_id='character_device')
+            character_consent = gr.Checkbox(value=False, label=CONSENT_LABEL)
+            character_button = gr.Button("用角色生成", variant="primary", elem_id="character_generate")
+            character_audio = gr.Audio(type="filepath", label="角色合成音频")
+            character_status = gr.Markdown()
 
-        def _refresh():
-            try:
-                choices = studio_character_choices()
-                return gr.Dropdown(choices=choices, value=None), None, "请选择角色卡。"
-            except Exception as exc:
-                _, message = _studio_failure(exc)
-                return gr.Dropdown(choices=[], value=None), None, message
+            def _refresh():
+                try:
+                    choices = studio_character_choices()
+                    return gr.Dropdown(choices=choices, value=None), None, "请选择角色卡。"
+                except Exception as exc:
+                    _, message = _studio_failure(exc)
+                    return gr.Dropdown(choices=[], value=None), None, message
 
-        refresh.click(_refresh, outputs=[characters, reference, metadata], api_name="character_refresh")
-        characters.change(do_character_preview, inputs=[characters], outputs=[reference, metadata])
-        button.click(do_character_synth, inputs=[characters, text, instruction, seed, consent, device],
-                     outputs=[audio, status], api_name="character_generate", **synthesis_options)
+            refresh.click(_refresh, outputs=[characters, character_reference, metadata], api_name="character_refresh")
+            characters.change(do_character_preview, inputs=[characters], outputs=[character_reference, metadata])
+            character_button.click(do_character_synth,
+                                   inputs=[characters, character_text, character_instruction, character_seed,
+                                           character_consent, device],
+                                   outputs=[character_audio, character_status], api_name="character_generate",
+                                   **synthesis_options)
     with gr.Tab("能力状态"):
         gr.Markdown(studio_availability_markdown())
 
@@ -438,10 +445,12 @@ def build_ui(*, include_legacy=False):
             from timbreforge.library_ui import build_library_tab
             build_library_tab(gr)
             from timbreforge.character_ui import build_character_tabs
-            build_character_tabs(gr)
+            build_character_tabs(gr, include_audio=False)
+            # Reference clone occupies the former audio-conditioning entry in
+            # the primary flow; advanced conditioning remains hidden there.
+            _build_studio_tabs(gr, synthesis_options)
             from timbreforge.voice_ui import build_voice_tabs
             build_voice_tabs(gr)
-            _build_studio_tabs(gr, synthesis_options)
             from timbreforge.creation_ui import build_creation_tabs
             build_creation_tabs(gr, synthesis_options)
             from timbreforge.admin_ui import build_admin_tabs

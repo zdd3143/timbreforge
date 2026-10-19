@@ -184,8 +184,13 @@ def history_rows(role_id, *, store=None):
     return rows
 
 
-def build_character_tabs(gr):
-    """Create/import and audio-conditioning pages; no model loads at build."""
+def build_character_tabs(gr, include_audio=True):
+    """Create/import and optional audio-conditioning pages; no model loads at build.
+
+    The main studio keeps audio conditioning out of the primary navigation.  A
+    caller that needs the legacy page (and its stable component IDs) can still
+    request it explicitly.
+    """
     initial_choices = role_choices()
     initial_value = initial_choices[0][1] if initial_choices else None
     initial_card = None
@@ -241,7 +246,8 @@ def build_character_tabs(gr):
                      [name, description, transcript, voice_prompt, recipe, tags, notes, audio],
                      status, api_name='character_create')
 
-    with gr.Tab('音频修整', id='audio_conditioning'):
+    audio_container = gr.Tab('音频修整', id='audio_conditioning', visible=include_audio)
+    with audio_container:
         gr.Markdown(
             '## 音频修整\n所有处理都生成**新的派生 WAV**，原始音频永不覆盖；'
             '处理参数、输入/输出哈希写入处理链，旧 Clone Prompt 自动失效。')

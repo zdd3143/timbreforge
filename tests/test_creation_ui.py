@@ -112,10 +112,13 @@ class CreationCallbackTests(unittest.TestCase):
         self.assertEqual(components['create_script']['props']['value'], ui.DEFAULT_SCRIPT)
         self.assertEqual(components['create_ref']['props']['sources'], ['upload'])
         self.assertIsNone(components['create_ref']['props'].get('format'))
-        self.assertFalse(components['create_ref']['props']['editable'])
+        self.assertTrue(components['create_ref']['props']['editable'])
+        self.assertIn('create_compose_files', components)
+        self.assertIn('create_compose', components)
         self.assertIn('create_play_a', components)
         self.assertIn('create_play_b', components)
 
 
 if __name__ == '__main__':
     unittest.main()
+

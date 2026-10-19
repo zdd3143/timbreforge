@@ -1,5 +1,17 @@
 # Reference assistant: inspect first, prepare only with consent
 
+The web UI exposes this as the **参考音频助手** inside the creation tools. The
+uploaded `gr.Audio` is editable: after upload, drag the two handles on its
+waveform to choose the excerpt, then check the confirmation box and save a
+derived copy. The filepath sent to the server is the selected waveform copy,
+so the server does not guess trim boundaries or silently alter the original.
+
+The same page includes **组合音频**. Select at least two local files in their
+desired order, choose a silence gap and a short boundary fade, and create a
+new FLOAT WAV. Inputs are read-only and must share sample rate and channel
+count. This is useful for preparing a longer reference from several approved
+clips without editing those clips in place.
+
 The `timbreforge.reference_assistant` module uses CPU NumPy and SoundFile only.
 It never loads models, downloads resources, runs ASR, identifies speakers, or
 silently enhances, normalizes, resamples, trims, or crops audio. Inspection reads
@@ -168,3 +180,4 @@ stereo and explicit mono cancellation, backend modes, range rejection,
 nonfinite/empty/silent input, Unicode/space paths, unique FLOAT WAV creation,
 original SHA invariance, exact applied sample selection, default output config,
 JSON safety and trimmed transcript invalidation/reconfirmation.
+
