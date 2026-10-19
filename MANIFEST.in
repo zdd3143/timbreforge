@@ -2,7 +2,7 @@ include README.md CHANGELOG.md LICENSE THIRD_PARTY_NOTICES.md CONTRIBUTING.md SE
 include .gitignore .gitattributes
 include backend-lock.json qwen-backend-lock.json planner-backend-lock.json timbreforge.example.toml
 include 启动声线工作室.cmd 安装并启动声线工作室.cmd
-recursive-include assets *.png
+recursive-include assets *.png *.jpg
 recursive-include docs *.md
 recursive-include examples *.md
 recursive-include patches *.md *.patch

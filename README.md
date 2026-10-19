@@ -4,6 +4,21 @@
 
 Chinese-first local voice studio: turn character profiles into editable voice prompts, generate previews, and reuse saved reference voices with new dialogue.
 
+[![CI](https://github.com/zdd3143/timbreforge/actions/workflows/ci.yml/badge.svg)](https://github.com/zdd3143/timbreforge/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB.svg)](pyproject.toml)
+
+![TimbreForge social preview](assets/social-preview.jpg)
+
+> 把“这个角色听起来应该是什么样”变成可试听、可保存、可复用的角色声音。
+
+TimbreForge 不是单独的 TTS 调用示例，而是一套围绕**角色声线资产**组织的本地工作流：角色设定会生成可编辑的声音描述，试听结果进入角色库，参考音频可以波形裁剪、串联和复用，后续台词始终从同一张角色卡继续生成。
+
+## 60 秒判断是否适合你
+
+1. 想做原创角色、游戏 NPC、有声小说或短视频角色声音。
+2. 希望参考音频、逐字稿和声音设定留在本机。
+3. 正在使用或准备使用 Qwen3-TTS，也希望保留 CosyVoice / IndexTTS 等后端入口。
+4. 不想每次生成都重新填写一套零散参数，而是希望先建立角色卡再持续复用。
+
 **当前版本：0.6.0a1 · Alpha**。语言模型与语音模型需另行配置；本仓库仅包含源码、文档、测试和版本清单。
 
 ## 功能
