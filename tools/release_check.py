@@ -21,7 +21,11 @@ ROOT_FILES = {'.gitignore', '.gitattributes', 'README.md', 'CHANGELOG.md', 'LICE
               'planner-backend-lock.json', 'timbreforge.example.toml', '启动声线工作室.cmd',
               '安装并启动声线工作室.cmd', 'DEEPSEEK_TASKS.md'}
 MAX_BYTES = 2 * 1024 * 1024
-PUBLIC_BINARY_ASSETS = {'assets/studio-background.png', 'assets/studio-background-v2.png'}
+PUBLIC_BINARY_ASSETS = {
+    'assets/studio-background.png',
+    'assets/studio-background-v2.png',
+    'assets/social-preview.jpg',
+}
 PRIVATE_DIRS = {'.git', '.local-data', '.dsh', '.codex', '.agents', '.venv', 'venv', 'private', '__pycache__'}
 ASSET_SUFFIXES = {'.wav', '.flac', '.mp3', '.ogg', '.m4a', '.mp4', '.pt', '.pth', '.onnx',
                   '.safetensors', '.ckpt', '.bin', '.doc', '.docx', '.pem', '.key', '.pfx', '.p12', '.log'}
