@@ -322,7 +322,14 @@ def _denoise(x, sample_rate, strength=0.35, window_ms=32, noise_seconds=0.35):
 def _normalize(x, sample_rate, target_lufs=-16.0, ceiling_dbfs=-1.0, max_gain_db=8.0):
     measured = measure_loudness(x, sample_rate)
     if not math.isfinite(measured):
-        raise ChainError('音频能量过低，无法测量响度。')
+        # EBU-style gating can return -inf for a very quiet but non-silent
+        # reference.  Do not amplify it into a noise bed; keep the samples and
+        # let the caller review the warning. Absolute silence remains an error.
+        peak_dbfs = measure_peak_dbfs(x)
+        if not math.isfinite(peak_dbfs) or peak_dbfs <= -120.0:
+            raise ChainError('音频能量过低，无法测量响度。')
+        return np.array(x, dtype=np.float64, copy=True), [
+            '响度测量未达到门限，保留原始增益以避免把底噪一起放大。']
     requested_gain = target_lufs - measured
     gain_db = min(requested_gain, float(max_gain_db))
     gain_limited = gain_db < requested_gain

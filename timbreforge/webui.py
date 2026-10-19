@@ -627,7 +627,9 @@ def main(argv=None) -> int:
         # sessions, playback copies, jobs, Qwen staging files or generated
         # takes behind.  CharacterStore is a separate durable root.
         try:
-            demo.close()
+            close = getattr(demo, 'close', None)
+            if callable(close):
+                close()
         finally:
             from timbreforge.ui_tasks import shutdown_runtime
             shutdown_runtime(clear_records=True)
